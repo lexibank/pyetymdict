@@ -1,10 +1,10 @@
-# Contributing to pyglottography
+# Contributing to pyetymdict
 
-## Installing pyglottography for development
+## Installing pyetymdict for development
 
-1. Fork `glottography/pyglottography`
+1. Fork `lexibank/pyetymdict`
 2. Clone your fork
-3. Install `pyglottography` for development (preferably in a separate virtual environment) running
+3. Install `pyetymdict` for development (preferably in a separate virtual environment) running
    ```shell
    pip install -r requirements.txt
    ```

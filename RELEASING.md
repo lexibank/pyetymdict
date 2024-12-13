@@ -1,5 +1,5 @@
 
-# Releasing pyglottography
+# Releasing pyetymdict
 
 - Do platform test via tox:
   ```shell
@@ -13,7 +13,7 @@
 
 - Update the version number, by removing the trailing `.dev0` in:
   - `setup.cfg`
-  - `src/pyglottography/__init__.py`
+  - `src/pyetymdict/__init__.py`
   - `CHANGELOG.md`
 
 - Create the release commit:
@@ -41,7 +41,7 @@
 
 - Change version for the next release cycle, i.e. incrementing and adding .dev0
   - `setup.cfg`
-  - `src/pyglottography/__init__.py`
+  - `src/pyetymdict/__init__.py`
 
 - Commit/push the version change:
   ```shell
