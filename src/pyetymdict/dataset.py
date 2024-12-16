@@ -1,5 +1,10 @@
 import attr
+import typing
+import pathlib
 
+import pycldf
+from pycldf import orm
+from cldfcatalog import Catalog
 import pylexibank
 
 
@@ -71,6 +76,24 @@ class Dataset(pylexibank.Dataset):
     language_class = Language
     lexeme_class = Form
 
+    def glottolog_cldf_languoids(
+            self,
+            default_path: typing.Union[pathlib.Path, str],
+            version: typing.Optional[str] = None) -> typing.Dict[str, orm.Language]:
+        """
+        The Glottolog CLDF datasets provides geo-coordinates for subgroups as well. Thus, in order
+        to provide locations for proto-languages, we provide a way to access this dataset.
+
+        :return: A `dict` mapping Glottocodes to language objects.
+        """
+        default_path = pathlib.Path(default_path)
+        path_to_glottolog_cldf = pathlib.Path(input(
+            'Path to glottolog-cldf repos [{}]: '.format(default_path)) or default_path)
+        assert path_to_glottolog_cldf.exists()
+        with Catalog(path_to_glottolog_cldf, tag=version):
+            return {lg.id: lg for lg in pycldf.Dataset.from_metadata(
+                path_to_glottolog_cldf / 'cldf' / 'cldf-metadata.json').objects('LanguageTable')}
+
     def schema(self, cldf, with_cf=True, with_borrowings=True):
         # Etyma, aka cognate sets or reconstructions:
         cldf.add_component(
@@ -121,6 +144,8 @@ class Dataset(pylexibank.Dataset):
                 'dc:description': 'An optional category for groups of forms such as "loans".'},
             {
                 'name': 'Comment',
+                "dc:format": "text/markdown",
+                "dc:conformsTo": "CLDF Markdown",
                 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment'},
             {
                 'name': 'Cognateset_ID',

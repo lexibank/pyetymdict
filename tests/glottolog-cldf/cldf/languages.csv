@@ -1,0 +1,101 @@
+ID,Name,Macroarea,Latitude,Longitude,Glottocode,ISO639P3code,Level,Countries,Family_ID,Language_ID,Closest_ISO369P3code,First_Year_Of_Documentation,Last_Year_Of_Documentation,Is_Isolate
+abkh1242,Abkhaz-Adyge,,43.692403000000006,40.8701525,abkh1242,,family,,,,,,,
+surm1244,Surmic,,6.8819987708333334,34.97338345833333,surm1244,,family,,,,,,,
+tama1329,Tamaic,,14.1199,22.072200000000002,tama1329,,family,,,,,,,
+yare1250,Yareban,,-9.526500833333333,148.41375,yare1250,,family,,,,,,,
+monu1249,Bogia,,-4.313245,144.97,monu1249,,family,,,,,,,
+tebe1251,Teberan,,-6.7604299999999995,144.4845,tebe1251,,family,,,,,,,
+sali1297,Saliban,,4.8956125,-68.276825,sali1297,,family,,,,,,,
+hibi1242,Hibito-Cholon,,-7.90731,-76.83105,hibi1242,,family,,,,,,,
+kiwa1251,Kiwaian,,-7.957872170863979,143.85166860272818,kiwa1251,,family,,,,,,,
+paho1240,Pahoturi,,-8.922485,142.41649999999998,paho1240,,family,,,,,,,
+fasu1242,Fasu,Papunesia,-6.62687,143.284,fasu1242,faa,language,PG,,,faa,,,true
+wash1253,Washo,North America,38.8184,-119.64,wash1253,was,language,US,,,was,,,true
+taua1242,Tauade,Papunesia,-8.3486,147.094,taua1242,ttd,language,PG,,,ttd,,,true
+araw1282,Arawan,,-6.3069066666666656,-66.69510833333332,araw1282,,family,,,,,,,
+puel1244,Puelche,South America,-42.223,-68.666,puel1244,pue,language,AR,,,pue,1829,1956,true
+tuxa1239,Tuxá,South America,-8.953642,-38.2742287,tuxa1239,tud,language,BR,,,tud,,1965,true
+beto1236,Betoi-Jirara,South America,7.223906,-71.420238,beto1236,,language,VE,,,,1741,1787,true
+cent2225,Central Sudanic,,4.293051212935224,27.949921102438214,cent2225,,family,,,,,,,
+else1239,Elseng,Papunesia,-3.00176,140.418,else1239,mrf,language,ID,,,mrf,,,true
+ando1256,Andoque,South America,-0.53751,-72.0869,ando1256,ano,language,CO,,,ano,,,true
+otom1299,Otomanguean,,17.112513677304946,-95.90112545668781,otom1299,,family,,,,,,,
+pyuu1245,Pyu,Papunesia,-4.45003,141.018,pyuu1245,pby,language,ID;PG,,,pby,,,true
+moch1259,Mochica,South America,-8.01667,-79.0,moch1259,omc,language,PE,,,omc,1607,1920,true
+doso1238,Doso-Turumsa,,-7.89522,142.61200000000002,doso1238,,family,,,,,,,
+atak1252,Atakapa,North America,30.9121,-93.0827,atak1252,aqp,language,US,,,aqp,1721,1934,true
+coos1248,Coosan,,43.37867898182487,-124.2147615037506,coos1248,,family,,,,,,,
+kwaz1243,Kwaza,South America,-11.6667,-61.1833,kwaz1243,xwa,language,BR,,,xwa,,,true
+cams1241,Camsá,South America,1.14537,-76.8931,cams1241,kbh,language,CO,,,kbh,,,true
+dibi1240,Dibiyaso,Papunesia,-7.82096,142.779,dibi1240,dby,language,PG,,,dby,,,true
+barb1265,Barbacoan,,0.2712833333333334,-78.11014300000002,barb1265,,family,,,,,,,
+sech1236,Sechuran,South America,-5.568969,-80.828247,sech1236,,language,PE,,,,1792,1918,true
+uruc1242,Uru-Chipaya,,-17.73249,-68.43376,uruc1242,,family,,,,,,,
+east1459,East Bird's Head,,-1.4485975,133.66575,east1459,,family,,,,,,,
+kuna1268,Kunama,Africa,14.5879,37.5292,kuna1268,kun,language,ER;ET;SD,,,kun,,,true
+yetf1238,Yetfa,Papunesia,-4.05884,140.653,yetf1238,yet,language,ID;PG,,,yet,,,true
+mixe1287,Mixed Language,,,,mixe1287,,family,,,,,,,
+miwo1274,Miwok-Costanoan,,37.8084578163565,-122.01508924133746,miwo1274,,family,,,,,,,
+utoa1244,Uto-Aztecan,,30.948187044961212,-111.06465793801081,utoa1244,,family,,,,,,,
+west2434,Western Daly,,-13.782544587526793,130.15187409923834,west2434,,family,,,,,,,
+geel1240,Geelvink Bay,,-2.487585669600993,136.88621790561166,geel1240,,family,,,,,,,
+kung1259,Kungarakany,Australia,-12.7,130.881,kung1259,ggk,language,AU,,,ggk,,1989,true
+pidg1258,Pidgin,,,,pidg1258,,family,,,,,,,
+giim1238,Giimbiyu,,-12.559674999999999,132.95925,giim1238,,family,,,,,,,
+bosa1245,Bosavi,,-6.336264377865483,142.68752318154966,bosa1245,,family,,,,,,,
+cand1248,Candoshi-Shapra,South America,-4.23835,-76.9347,cand1248,cbu,language,PE,,,cbu,,,true
+jiva1245,Chicham,,-4.2871412499999995,-77.79803749999999,jiva1245,,family,,,,,,,
+hata1242,Hatam-Mansim,,-1.025182,134.024058,hata1242,,family,,,,,,,
+buru1296,Burushaski,Eurasia,36.2161,74.8236,buru1296,bsk,language,IN;PK,,,bsk,,,true
+lafo1243,Lafofa,Africa,10.3357,30.7331,lafo1243,laf,language,SD,,,laf,,,true
+huav1256,Huavean,,16.268133856000077,-94.77989661399994,huav1256,,family,,,,,,,
+cofa1242,Cofán,South America,0.276675,-77.0643,cofa1242,con,language,CO;EC,,,con,,,true
+kadu1256,Kadugli-Krongo,,11.095941666666667,29.483575,kadu1256,,family,,,,,,,
+lule1238,Lule,South America,-25.221839,-61.887818,lule1238,ule,language,AR,,,ule,,1732,true
+sulk1246,Sulka,Papunesia,-5.03471,151.891,sulk1246,sua,language,PG,,,sua,,,true
+sout2845,South Omotic,,5.90174625,36.40803875,sout2845,,family,,,,,,,
+mose1249,Mosetén-Chimané,South America,-14.64448,-67.83756,mose1249,cas,language,BO,,,cas,,,true
+mong1349,Mongolic-Khitan,,42.9470043223832,106.42138010513067,mong1349,,family,,,,,,,
+mang1423,Mangarrayi-Maran,,-14.839683333333333,134.22533333333337,mang1423,,family,,,,,,,
+tiwi1244,Tiwi,Australia,-11.6308,130.949,tiwi1244,tiw,language,AU,,,tiw,,,true
+leng1261,Lengua-Mascoy,,-22.58419283552177,-58.33805777850725,leng1261,,family,,,,,,,
+cani1243,Canichana,South America,-14.3058,-64.944455,cani1243,caz,language,BO,,,caz,,1995,true
+daju1249,Dajuic,,10.94311949905767,26.570779698290433,daju1249,,family,,,,,,,
+garr1260,Garrwan,Australia,-18.05165,137.66406999999998,garr1260,gbc,family,AU,,,gbc,,,
+drav1251,Dravidian,,22.000694930590036,79.45764897410312,drav1251,,family,,,,,,,
+kena1236,Kenaboi,Eurasia,3.154162,102.01596,kena1236,xbn,language,MY,,,xbn,,1880,true
+nimb1257,Nimboranic,,-2.578156875,140.2446875,nimb1257,,family,,,,,,,
+oyst1235,Oyster Bay-Big River-Little Swanport,Australia,-42.307378,147.50061,oyst1235,xpd,language,AU,,,xpd,,1805,true
+yuki1242,Yuki-Wappo,,39.04445,-122.898,yuki1242,,family,,,,,,,
+sume1241,Sumerian,Eurasia,31.3,45.6667,sume1241,sux,language,IQ,,,sux,,-3100,true
+yura1255,Yuracaré,South America,-16.7479,-65.1224,yura1255,yuz,language,BO,,,yuz,,,true
+lavu1241,Lavukaleve,Papunesia,-9.05569,159.119,lavu1241,lvk,language,SB,,,lvk,,,true
+hurr1239,Hurro-Urartian,,39.61695,43.32895,hurr1239,,family,,,,,,,
+saus1247,Sause,Papunesia,-3.16632,139.627,saus1247,sao,language,ID,,,sao,,,true
+tuca1253,Tucanoan,,-0.08783435069444442,-72.42886514583333,tuca1253,,family,,,,,,,
+leco1242,Leco,South America,-15.0092,-67.8818,leco1242,lec,language,BO,,,lec,,,true
+adai1235,Adai,North America,31.6314,-92.0059,adai1235,xad,language,US,,,xad,,1805,true
+sout2948,South Bougainville,,-6.5046703125,155.53662500000002,sout2948,,family,,,,,,,
+mara1266,Maratino,North America,24.339089,-98.576661,mara1266,,language,MX,,,,,1873,true
+pomo1273,Pomoan,,38.97407375000001,-122.65441374999999,pomo1273,,family,,,,,,,
+mpur1239,Mpur,Papunesia,-0.7489,133.166,mpur1239,akc,language,ID,,,akc,,,true
+guri1248,Muno,Papunesia,-3.5718,141.597,guri1248,grx,language,PG,,,grx,,,true
+katl1246,Katla-Tima,,11.691676999999999,29.29042325,katl1246,,family,,,,,,,
+choc1280,Chocoan,,6.733067083333334,-76.96017,choc1280,,family,,,,,,,
+coah1252,Coahuilteco,North America,28.2589,-97.89,coah1252,xcw,language,MX,,,xcw,1732,1760,true
+mink1237,Minkin,Australia,-17.736653,139.541931,mink1237,xxm,language,AU,,,xxm,,1905,true
+kaya1327,Kayagaric,,-6.391039999999999,138.789,kaya1327,,family,,,,,,,
+sino1245,Sino-Tibetan,,28.205796673213694,97.72824370629075,sino1245,,family,,,,,,,
+cuit1236,Cuitlatec,North America,18.1,-100.5,cuit1236,cuy,language,MX,,,cuy,,1965,true
+krua1234,Kru,,6.093338539277438,-7.397532660501622,krua1234,,family,,,,,,,
+more1255,Yam,,-8.585425600960907,141.11212050426113,more1255,,family,,,,,,,
+song1307,Songhay,,16.661174876606953,-0.40664483064927603,song1307,,family,,,,,,,
+west1493,West Bird's Head,,-1.2473341666666666,131.61233333333334,west1493,,family,,,,,,,
+sign1238,Sign Language,,,,sign1238,,family,,,,,,,
+narr1279,Narrow Talodi,,10.821325000000002,30.283908333333333,narr1279,,family,,,,,,,
+kond1302,Konda-Yahadian,,-1.88476,132.078,kond1302,,family,,,,,,,
+jara1244,Jarawa-Onge,,11.360744533000059,92.61963951900003,jara1244,,family,,,,,,,
+guac1239,Guachi,South America,-19.5572257,-57.5663223,guac1239,,language,BR,,,,,1900,true
+kibi1239,Kibiri,Papunesia,-7.45276,144.296,kibi1239,prm,language,PG,,,prm,,,true
+tara1323,Tarascan,,19.39295,-101.8925,tara1323,,family,,,,,,,
+arut1244,Arutani,South America,4.0673594,-62.8676118,arut1244,atx,language,BR;VE,,,atx,,,true
