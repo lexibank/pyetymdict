@@ -2,10 +2,14 @@ import attr
 import typing
 import pathlib
 
+import newick
 import pycldf
 from pycldf import orm
 from cldfcatalog import Catalog
 import pylexibank
+from clldutils.misc import data_url
+
+__all__ = ['Language', 'Form', 'Dataset']
 
 
 @attr.s
@@ -75,6 +79,31 @@ class Form(pylexibank.Lexeme):
 class Dataset(pylexibank.Dataset):
     language_class = Language
     lexeme_class = Form
+
+    def add_tree(self, writer, tree_newick_string, names=None):
+        for comp in ['TreeTable', 'MediaTable']:
+            if comp not in writer.cldf:
+                writer.cldf.add_component(comp)
+
+        # Add the classification tree
+        t = newick.loads(tree_newick_string)[0]
+        if names:
+            t.rename(**names)
+        writer.objects['MediaTable'].append(dict(
+            ID='tree',
+            Name='Newick tree',
+            Description='The tree structure of the reconstruction levels',
+            Media_Type='text/x-nh',
+            Download_URL=data_url(t.newick, 'text/x-nh'),
+        ))
+        writer.objects['TreeTable'].append(dict(
+            ID='tree',
+            Name='1',
+            Description='The tree structure of the reconstruction levels',
+            Tree_Is_Rooted='Yes',
+            Tree_Type='summary',
+            Media_ID='tree',
+        ))
 
     def glottolog_cldf_languoids(
             self,
