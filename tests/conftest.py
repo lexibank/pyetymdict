@@ -19,7 +19,7 @@ def ds(tmp_path):
         dir = tmp_path
 
         def cmd_makecldf(self, args):
-            self.schema(args.writer.cldf)
+            self.schema(args.writer.cldf, with_cf=False)
             args.writer.objects['LanguageTable'].append(dict(ID='r', Name='root', Is_Proto=True))
             args.writer.objects['LanguageTable'].append(dict(ID='l1', Name='language1', Is_Proto=False))
             args.writer.objects['LanguageTable'].append(dict(ID='l2', Name='language2', Is_Proto=False))
@@ -31,6 +31,10 @@ def ds(tmp_path):
                 dict(ID='2', Value='r1', Form='r1', Language_ID='r', Parameter_ID='p1'))
             args.writer.objects['CognateTable'].append(dict(ID='1', Form_ID='1', Cognateset_ID='1'))
             args.writer.objects['CognateTable'].append(dict(ID='2', Form_ID='2', Cognateset_ID='1'))
+            args.writer.objects['CognatesetTable'].append(dict(
+                ID='1',
+                Comment='See also [language1](LanguageTable#cldf:l1) _form_ ([x](Source#cldf:y))',
+                Form_ID='2'))
 
     ds = DS()
     ds._cmd_makecldf(argparse.Namespace(

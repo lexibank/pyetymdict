@@ -1,6 +1,11 @@
 # Changes
 
 
+## [unreleased]
+
+Added cldfbench subcommand to display a cognate set in a dataset.
+
+
 ## [0.3.0] - 2024-12-17
 
 Support for a tree which specifies reconstruction levels.

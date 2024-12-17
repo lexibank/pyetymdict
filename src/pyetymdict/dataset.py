@@ -51,7 +51,7 @@ class Form(pylexibank.Lexeme):
     Comment = attr.ib(
         default=None,
         metadata={
-            'propertyUrl': 'http://clld.org/v1.0/terms.rdf#comment',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment',
             "dc:format": "text/markdown",
             "dc:conformsTo": "CLDF Markdown",
             'dc:description':
@@ -60,7 +60,7 @@ class Form(pylexibank.Lexeme):
     Description = attr.ib(
         default=None,
         metadata={
-            'propertyUrl': 'http://clld.org/v1.0/terms.rdf#description',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#description',
             "dc:format": "text/markdown",
             "dc:conformsTo": "CLDF Markdown",
             'dc:description':
