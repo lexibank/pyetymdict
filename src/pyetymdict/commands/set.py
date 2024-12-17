@@ -52,6 +52,14 @@ class Cognateset:
         )
 
 
+class Source:
+    def __init__(self, key):
+        self.key = key
+
+    def refkey(self):
+        return self.key
+
+
 @dataclasses.dataclass
 class Cognate:
     ds: pycldf.Dataset
@@ -60,6 +68,7 @@ class Cognate:
     is_proto: str
     form: str
     meaning: str
+    source: str
 
     def related(self, what):
         assert what == 'formReference'
@@ -73,11 +82,14 @@ class Cognate:
             )
         )
 
+    @property
+    def references(self):
+        return [types.SimpleNamespace(source=Source(src)) for src in (self.source or '').split()]
+
 
 def run(args):
     cldf = get_dataset(args)
     # Aggregate the subsets linked to the etymon:
-
     cs = None
     db = Database(cldf, fname=args.db) if args.db else None
     if db:
@@ -101,10 +113,19 @@ where  l.cldf_id = f.cldf_languageReference
     if db:
         cognates = []
         for res in db.query("""
-select l.cldf_id, l.cldf_name, l.is_proto, f.cldf_value, f.cldf_description
+select
+    l.cldf_id,
+    l.cldf_name,
+    l.is_proto,
+    f.cldf_value,
+    f.cldf_description,
+    group_concat(csrc.SourceTable_id, ' ')
 from languagetable as l, formtable as f, cognatetable as c
-where l.cldf_id = f.cldf_languageReference and c.cldf_formReference = f.cldf_id
-    and c.cldf_cognatesetReference = ?;
+left join CognateTable_SourceTable as csrc on c.cldf_id = csrc.CognateTable_cldf_id
+where l.cldf_id = f.cldf_languageReference
+    and c.cldf_formReference = f.cldf_id
+    and c.cldf_cognatesetReference = ?
+group by l.cldf_id, l.cldf_name, l.is_proto, f.cldf_value, f.cldf_description
 """, (cs.id,)):
             cognates.append(Cognate(cldf, *res))
     else:
@@ -121,13 +142,18 @@ where l.cldf_id = f.cldf_languageReference and c.cldf_formReference = f.cldf_id
         tree = reconstruction_tree(cldf, cognates, language_attr=args.language_property)
         print(tree.ascii_art())
         print('')
-    with Table(args, 'Language', 'Form', 'Meaning') as t:
+    with Table(args, 'Language', 'Form', 'Meaning', 'Source') as t:
         for cog in cognates:
             form = cog.related('formReference')
-            t.append([fmt_lang(form.language), fmt_form(form), fmt_meaning(form)])
+            t.append([
+                fmt_lang(form.language), fmt_form(form), fmt_meaning(form), fmt_references(cog)])
     if cs.cldf.comment:
         print('')
         print(fmt_comment(cs.cldf.comment, cldf))
+
+
+def fmt_references(obj):
+    return '; '.join(ref.source.refkey() for ref in obj.references)
 
 
 def fmt_form(obj):
