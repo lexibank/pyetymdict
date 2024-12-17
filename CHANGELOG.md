@@ -1,7 +1,7 @@
 # Changes
 
 
-## [unreleased]
+## [0.4.0] - 2024-12-17
 
 Added cldfbench subcommand to display a cognate set in a dataset.
 
