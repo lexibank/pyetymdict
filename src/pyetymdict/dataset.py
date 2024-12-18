@@ -74,6 +74,15 @@ class Form(pylexibank.Lexeme):
                 "For a form that differs from the expected reflex in some way "
                 "this flag asserts that a copying mistake has not occurred."}
     )
+    Doubt = attr.ib(
+        default=False,
+        metadata={
+            'datatype': 'boolean',
+            'dc:description':
+                "In particular reconstructions, i.e. proto-forms in etymological dictionaries, "
+                "are often marked as being somewhat doubtful (typically displayed as proto-form "
+                "prefixed with a '?' or similar)."}
+    )
 
 
 class Dataset(pylexibank.Dataset):
