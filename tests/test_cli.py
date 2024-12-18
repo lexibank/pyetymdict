@@ -16,6 +16,16 @@ def test_set_register(capsys):
 
 def test_set(ds, tmp_path, capsys):
     setcommand.run(argparse.Namespace(
+        set=None,
+        dataset=str(ds.cldf_dir),
+        download_dir='',
+        language_property=None,
+        format='simple',
+        db=None))
+    out, _ = capsys.readouterr()
+    assert 'root *r1' in out
+
+    setcommand.run(argparse.Namespace(
         set='1',
         dataset=str(ds.cldf_dir),
         download_dir='',
@@ -31,6 +41,16 @@ def test_set_from_db(ds, tmp_path, capsys):
     db.write_from_tg()
     setcommand.run(argparse.Namespace(
         set='1',
+        dataset=str(ds.cldf_dir),
+        download_dir='',
+        language_property=None,
+        format='simple',
+        db=str(tmp_path / 'db.sqlite'),))
+    out, _ = capsys.readouterr()
+    assert 'root *r1' in out
+
+    setcommand.run(argparse.Namespace(
+        set=None,
         dataset=str(ds.cldf_dir),
         download_dir='',
         language_property=None,

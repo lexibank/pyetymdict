@@ -21,7 +21,7 @@ from pyetymdict.tree import reconstruction_tree
 
 def register(parser):
     add_dataset(parser)
-    parser.add_argument('set', help="ID or Name of the cognate set.")
+    parser.add_argument('--set', default=None, help="ID or Name of the cognate set.")
     parser.add_argument(
         '--language-property',
         default=None,
@@ -90,43 +90,59 @@ class Cognate:
 def run(args):
     cldf = get_dataset(args)
     # Aggregate the subsets linked to the etymon:
-    cs = None
+    css = []
     db = Database(cldf, fname=args.db) if args.db else None
     if db:
-        for i, res in enumerate(db.query("""
+        if not args.set:
+            for i, res in enumerate(db.query("""
+select cs.cldf_id, cs.cldf_comment, f.cldf_value, f.cldf_description, l.cldf_name
+from cognatesettable as cs, formtable as f, languagetable as l
+where  l.cldf_id = f.cldf_languageReference
+and f.cldf_id = cs.cldf_formReference
+""")):
+                css.append(Cognateset(*res))
+        else:
+            for i, res in enumerate(db.query("""
 select cs.cldf_id, cs.cldf_comment, f.cldf_value, f.cldf_description, l.cldf_name
 from cognatesettable as cs, formtable as f, languagetable as l
 where  l.cldf_id = f.cldf_languageReference
     and f.cldf_id = cs.cldf_formReference
     and (cs.cldf_id = ? or f.cldf_value like ?);
-""", (args.set, args.set.replace('*', '') + '%'))):
-            if i > 0:
-                raise ValueError('Multiple options!')  # pragma: no cover
-            cs = Cognateset(*res)
+""", (args.set, '%' + args.set.replace('*', '') + '%'))):
+                css.append(Cognateset(*res))
     else:
         for cs in cldf.objects('CognatesetTable'):
-            if cs.id == args.set or cs.cldf.name.replace('*', '') == args.set.replace('*', ''):
-                break
-    if not cs:
+            if args.set:
+                if cs.id == args.set or args.set.replace('*', '') in cs.cldf.name.replace('*', ''):
+                    css.append(cs)
+                    break
+            else:
+                css.append(cs)
+    if not css:
         raise ValueError()  # pragma: no cover
 
+    for cs in css:
+        print_cs(args, cldf, db, cs)
+
+
+def print_cs(args, cldf, db, cs):
     if db:
         cognates = []
         for res in db.query("""
-select
-    l.cldf_id,
-    l.cldf_name,
-    l.is_proto,
-    f.cldf_value,
-    f.cldf_description,
-    group_concat(csrc.SourceTable_id, ' ')
-from languagetable as l, formtable as f, cognatetable as c
-left join CognateTable_SourceTable as csrc on c.cldf_id = csrc.CognateTable_cldf_id
-where l.cldf_id = f.cldf_languageReference
-    and c.cldf_formReference = f.cldf_id
-    and c.cldf_cognatesetReference = ?
-group by l.cldf_id, l.cldf_name, l.is_proto, f.cldf_value, f.cldf_description
-""", (cs.id,)):
+    select
+        l.cldf_id,
+        l.cldf_name,
+        l.is_proto,
+        f.cldf_value,
+        f.cldf_description,
+        group_concat(csrc.SourceTable_id, ' ')
+    from languagetable as l, formtable as f, cognatetable as c
+    left join CognateTable_SourceTable as csrc on c.cldf_id = csrc.CognateTable_cldf_id
+    where l.cldf_id = f.cldf_languageReference
+        and c.cldf_formReference = f.cldf_id
+        and c.cldf_cognatesetReference = ?
+    group by l.cldf_id, l.cldf_name, l.is_proto, f.cldf_value, f.cldf_description
+    """, (cs.id,)):
             cognates.append(Cognate(cldf, *res))
     else:
         cognates = [
