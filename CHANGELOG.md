@@ -1,6 +1,11 @@
 # Changes
 
 
+## [1.0.0] - 2024-12-19
+
+Ready to go, publishing ACD and MCD.
+
+
 ## [0.4.0] - 2024-12-17
 
 Added cldfbench subcommand to display a cognate set in a dataset.
