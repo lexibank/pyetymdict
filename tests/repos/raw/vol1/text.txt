@@ -1,0 +1,61 @@
+1 Introduction
+
+1.1 Section
+
+
+1.1.1 Subsection
+
+<
+POc *mata 'eye'
+ Adm: Language word
+>
+
+__igt__
+  Language (Adm)
+  a b c
+  A B C
+  'translation'
+
+###newpage###5 Sub
+
+1.1.1.1 Subsubsection
+
+<
+POc *mata 'eye'
+ Adm: Language word
+cf. also:
+ Adm: Language other 'gloss'
+cf. also: Loans
+ Adm: Language other 'gloss'
+>
+
+See Author (2000, 2001) and Table 1.
+
+<
+POc *mata 'eye'
+ Adm: Language word
+cf. also:
+ Adm: Language other 'gloss'
+cf. also: Loans
+ Adm: Language other 'gloss'
+>
+
+__igt__
+  POc
+  a b c
+  A B C
+  'translation'
+
+1.1.1.1.1 Subsubsubsection
+
+Map 1: Not here
+
+See Map 1 above.
+
+__formgroup__
+ Adm: Language word
+
+__formgroup__
+ Adm: Language word
+
+The end

@@ -89,7 +89,12 @@ class Dataset(pylexibank.Dataset):
     language_class = Language
     lexeme_class = Form
 
-    def add_tree(self, writer, tree_newick_string, names=None):
+    def add_tree(self,
+                 writer,
+                 tree_newick_string,
+                 names=None,
+                 separate_file=False,
+                 description='The tree structure of the reconstruction levels'):
         for comp in ['TreeTable', 'MediaTable']:
             if comp not in writer.cldf:
                 writer.cldf.add_component(comp)
@@ -98,17 +103,22 @@ class Dataset(pylexibank.Dataset):
         t = newick.loads(tree_newick_string)[0]
         if names:
             t.rename(**names)
+        if separate_file:
+            self.cldf_dir.joinpath('tree.nwk').write_text(tree_newick_string, encoding='utf8')
+            url = 'tree.nwk'
+        else:
+            url = data_url(t.newick, 'text/x-nh')
         writer.objects['MediaTable'].append(dict(
             ID='tree',
             Name='Newick tree',
-            Description='The tree structure of the reconstruction levels',
+            Description=description,
             Media_Type='text/x-nh',
-            Download_URL=data_url(t.newick, 'text/x-nh'),
+            Download_URL=url,
         ))
         writer.objects['TreeTable'].append(dict(
             ID='tree',
             Name='1',
-            Description='The tree structure of the reconstruction levels',
+            Description=description,
             Tree_Is_Rooted='Yes',
             Tree_Type='summary',
             Media_ID='tree',

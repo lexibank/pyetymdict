@@ -1,8 +1,11 @@
+import string
 import logging
 import pathlib
 import argparse
 
 import pytest
+from csvw.dsv import reader
+from pycldf.sources import Source, Sources
 
 from pyetymdict import Dataset
 
@@ -43,3 +46,33 @@ def ds(tmp_path):
         verbose=False,
         log=logging.getLogger(__name__)))
     return ds
+
+
+@pytest.fixture(scope='session')
+def repos():
+    return pathlib.Path(__file__).parent / 'repos'
+
+
+@pytest.fixture(scope='session')
+def parser(repos):
+    from pyetymdict.parser.models import Parser
+
+    return Parser(
+        [repos / 'raw' / 'vol1'],
+        {r['Name']: r for r in reader(repos / 'etc' / 'languages.csv', dicts=True)},
+        Source.from_bibtex('@book{b,\nauthor={a},\ntitle={the title}}'),
+        Sources.from_file(repos / 'etc' / 'sources.bib'),
+        {
+            'POc': list(string.ascii_lowercase),
+            'PMP': list(string.ascii_lowercase),
+        },
+        list(string.ascii_lowercase),
+        ['Adm', 'NNG'],
+        pos_map={'N': 'N', 'V': 'V', 'VT': 'VT'},
+        kinship_tags=['PZ'],
+    )
+
+
+@pytest.fixture(scope='session')
+def volume1(parser):
+    return parser.volumes[0]
