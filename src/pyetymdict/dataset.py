@@ -1,32 +1,37 @@
-import attr
-import typing
+"""
+An EtymDict-specific CLDFBench Dataset subclass.
+"""
 import pathlib
+import dataclasses
+from typing import Optional, Union
 
 import newick
 import pycldf
 from pycldf import orm
 from cldfcatalog import Catalog
+from cldfbench import CLDFWriter
 import pylexibank
 from clldutils.misc import data_url
 
 __all__ = ['Language', 'Form', 'Dataset']
 
 
-@attr.s
+@dataclasses.dataclass
 class Language(pylexibank.Language):
-    Abbr = attr.ib(
+    """Languages in an EtymDict might be Proto-Languages."""
+    Abbr: Optional[str] = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={'dc:description': 'Abbreviation for the (proto-)language name.'},
     )
-    Group = attr.ib(
+    Group: Optional[str] = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={
             'dc:description':
                 'Etymological dictionaries often operate with an assumed internal classification. '
                 'This column lists such groups.'},
     )
-    Source = attr.ib(
-        default=None,
+    Source: list[str] = dataclasses.field(  # pylint: disable=C0103
+        default_factory=list,
         metadata={
             'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#source',
             'separator': ';',
@@ -35,7 +40,7 @@ class Language(pylexibank.Language):
                 'many source dictionaries.',
         },
     )
-    Is_Proto = attr.ib(
+    Is_Proto: bool = dataclasses.field(  # pylint: disable=C0103
         default=False,
         metadata={
             'datatype': 'boolean',
@@ -46,9 +51,10 @@ class Language(pylexibank.Language):
     )
 
 
-@attr.s
+@dataclasses.dataclass
 class Form(pylexibank.Lexeme):
-    Comment = attr.ib(
+    """Forms in an EtymDict typically provide some commentary regarding their property as reflex."""
+    Comment: Optional[str] = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={
             'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment',
@@ -57,7 +63,7 @@ class Form(pylexibank.Lexeme):
             'dc:description':
                 "Comment on the word form (and also on its membership in cognate sets)."}
     )
-    Description = attr.ib(
+    Description: Optional[str] = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={
             'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#description',
@@ -66,7 +72,7 @@ class Form(pylexibank.Lexeme):
             'dc:description':
                 "Description of the meaning of the word (possibly in language-specific terms)."}
     )
-    Sic = attr.ib(
+    Sic: bool = dataclasses.field(  # pylint: disable=C0103
         default=False,
         metadata={
             'datatype': 'boolean',
@@ -74,7 +80,7 @@ class Form(pylexibank.Lexeme):
                 "For a form that differs from the expected reflex in some way "
                 "this flag asserts that a copying mistake has not occurred."}
     )
-    Doubt = attr.ib(
+    Doubt: bool = dataclasses.field(  # pylint: disable=C0103
         default=False,
         metadata={
             'datatype': 'boolean',
@@ -86,15 +92,19 @@ class Form(pylexibank.Lexeme):
 
 
 class Dataset(pylexibank.Dataset):
+    """EtymDict-specific CLDFBench dataset."""
     language_class = Language
     lexeme_class = Form
 
-    def add_tree(self,
-                 writer,
-                 tree_newick_string,
-                 names=None,
-                 separate_file=False,
-                 description='The tree structure of the reconstruction levels'):
+    def add_tree(  # pylint: disable=R0913,R0917
+            self,
+            writer: CLDFWriter,
+            tree_newick_string: str,
+            names: Optional[dict[str,str]] = None,
+            separate_file: bool = False,
+            description: str = 'The tree structure of the reconstruction levels',
+    ):
+        """Add the reconstruction tree."""
         for comp in ['TreeTable', 'MediaTable']:
             if comp not in writer.cldf:
                 writer.cldf.add_component(comp)
@@ -108,14 +118,14 @@ class Dataset(pylexibank.Dataset):
             url = 'tree.nwk'
         else:
             url = data_url(t.newick, 'text/x-nh')
-        writer.objects['MediaTable'].append(dict(
+        writer.objects['MediaTable'].append(dict(  # pylint: disable=R1735
             ID='tree',
             Name='Newick tree',
             Description=description,
             Media_Type='text/x-nh',
             Download_URL=url,
         ))
-        writer.objects['TreeTable'].append(dict(
+        writer.objects['TreeTable'].append(dict(  # pylint: disable=R1735
             ID='tree',
             Name='1',
             Description=description,
@@ -126,8 +136,9 @@ class Dataset(pylexibank.Dataset):
 
     def glottolog_cldf_languoids(
             self,
-            default_path: typing.Union[pathlib.Path, str],
-            version: typing.Optional[str] = None) -> typing.Dict[str, orm.Language]:
+            default_path: Union[pathlib.Path, str],
+            version: Optional[str] = None,
+    ) -> dict[str, orm.Language]:
         """
         The Glottolog CLDF datasets provides geo-coordinates for subgroups as well. Thus, in order
         to provide locations for proto-languages, we provide a way to access this dataset.
@@ -136,13 +147,19 @@ class Dataset(pylexibank.Dataset):
         """
         default_path = pathlib.Path(default_path)
         path_to_glottolog_cldf = pathlib.Path(input(
-            'Path to glottolog-cldf repos [{}]: '.format(default_path)) or default_path)
+            f'Path to glottolog-cldf repos [{default_path}]: ') or default_path)
         assert path_to_glottolog_cldf.exists()
         with Catalog(path_to_glottolog_cldf, tag=version):
             return {lg.id: lg for lg in pycldf.Dataset.from_metadata(
                 path_to_glottolog_cldf / 'cldf' / 'cldf-metadata.json').objects('LanguageTable')}
 
-    def schema(self, cldf, with_cf=True, with_borrowings=True):
+    def schema(
+            self,
+            cldf: pycldf.Dataset,
+            with_cf: bool = True,
+            with_borrowings: bool = True,
+    ):
+        """Add the EtymDict-specific schema."""
         # Etyma, aka cognate sets or reconstructions:
         cldf.add_component(
             'CognatesetTable',

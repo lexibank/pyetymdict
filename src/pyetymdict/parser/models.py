@@ -2,11 +2,12 @@
 
 """
 import re
-import typing
 import pathlib
 import functools
 import collections
+from collections.abc import Iterable, Container, Generator
 import dataclasses
+from typing import Any, Optional, Literal
 
 from pycldf.sources import Source, Sources
 from clldutils.misc import slug
@@ -21,22 +22,26 @@ from .lines import CF_LINE_PREFIX, extract_etyma, iter_chapters, extract_igts, e
 from .util import re_choice
 from . import refs
 
+LanguageIdType = str
+ChapterNumberType = str
+
 
 @dataclasses.dataclass
 class Reference:
+    """A reference to a bibliographical source."""
     id: str
     label: str
     pages: str = None
 
     def __str__(self):
-        return '[{}]({})'.format(self.label, self.id)
+        return f'[{self.label}]({self.id})'
 
     @property
-    def cldf_id(self):
+    def cldf_id(self) -> str:
+        """The reference formatted for a CLDF Source field."""
         res = self.id
         if self.pages:
-            res += '[{}]'.format(
-                self.pages.replace('[', '［').replace(']', '］'))
+            res += f"[{self.pages.replace('[', '［').replace(']', '］')}]"
         return res
 
 
@@ -46,9 +51,9 @@ class DataReference:
     An object in the CLDF dataset, extracted from the raw data and re-inserted when rendering.
     """
     volume: str = None
-    chapter: tuple = None
-    section: tuple = None
-    subsection: tuple = None
+    chapter: tuple[str, str] = None
+    section: tuple[str, str] = None
+    subsection: tuple[str, str] = None
     page: int = 0
 
     __table__ = None
@@ -56,7 +61,7 @@ class DataReference:
     def subkey(self):
         return []  # pragma: no cover
 
-    def key(self):
+    def key(self) -> tuple:
         if not self.section:
             raise ValueError(str(self))  # pragma: no cover
         return tuple([
@@ -77,25 +82,40 @@ class DataReference:
     def __eq__(self, other):  # pragma: no cover
         return self.key() == other.key()
 
-    def cldf_markdown_link_label(self):
+    def cldf_markdown_link_label(self) -> str:
         return self.id
 
-    def cldf_markdown_link(self):
-        return '[{}]({}#cldf:{})\n'.format(
-            self.cldf_markdown_link_label(), self.__table__, self.id)
+    def cldf_markdown_link(self) -> str:
+        """The reference formatted as CLDF Markdown link."""
+        return f'[{self.cldf_markdown_link_label()}]({self.__table__}#cldf:{self.id})\n'
 
 
 @dataclasses.dataclass(eq=False)
 class FormGroup(DataReference):
+    """
+    Groups of (not necessarily cognate) forms. E.g. forms appended to an etymon as "cf." forms,
+    often loanwords, which are not to be confused with proper cognates.
+    """
     forms: list = None
     __table__ = 'cf.csv'
 
     def subkey(self):
+        """
+        We assume that there are no two form groups starting with the same form in the same section.
+        """
         f = self.forms[0]
         return (slug(f.group), slug(f.lang), slug(f.forms[0]))
 
     @classmethod
-    def from_data(cls, vol, h1, h2, h3, page, lines):
+    def from_data(
+            cls,
+            vol: 'Volume',
+            h1: tuple[str, str],
+            h2: tuple[str, str],
+            h3: tuple[str, str],
+            page: int,
+            lines: Iterable[str],
+    ):
         assert all(vol.parser.is_forms_line(line) for line in lines), lines
         forms = [
             Reflex.from_line(vol, line)
@@ -330,8 +350,7 @@ class ExampleGroup(DataReference):
         return res
 
 
-def comment_or_sources(vol, cmt) \
-        -> typing.Tuple[typing.Union[None, str], typing.Union[None, typing.List[Reference]]]:
+def comment_or_sources(vol: 'Volume', cmt: str) -> tuple[Optional[str], Optional[list[Reference]]]:
     """
     If `cmt` can be parsed as comma-separated list of references, these are returned.
     """
@@ -351,7 +370,7 @@ class Gloss:
     gloss: str
     morpheme_gloss: str = None
     comment: str = None
-    sources: typing.List[Reference] = None
+    sources: list[Reference] = None
     number: str = None
     pos: str = None
     fn: str = None
@@ -396,8 +415,8 @@ class Gloss:
 @dataclasses.dataclass
 class Form:
     lang: str
-    forms: typing.List[str]
-    glosses: typing.List[Gloss] = None
+    forms: list[str]
+    glosses: list[Gloss] = None
     subgroup: str = None
     footnote_number: str = None
     morpheme_gloss: str = None
@@ -411,7 +430,7 @@ class Protoform(Form):
     comment: str = None
     pfdoubt: bool = False
     pldoubt: bool = False
-    sources: typing.List[Reference] = None
+    sources: list[Reference] = None
 
     @property
     def form(self):
@@ -728,31 +747,113 @@ class Chapter:
             yield sec, '\n'.join(lines)
 
 
-class Volume:
-    def __init__(self, parser, d, langs, bib, sources):
-        self.parser = parser
-        self.dir = d
-        self.num = d.name[-1]
-        self.langs = langs
-        self.metadata = jsonlib.load(self.dir / 'md.json')
-        self._lines = None
-        bib.id = 'tlopo{}'.format(self.num)
-        bib['title'] += ' {}: {}'.format(self.num, self.metadata['title'])
-        self.bib = bib
-        self.sources = sources
-        self.chapter_pages = {}
+@dataclasses.dataclass(frozen=True)
+class VolumeDir:
+    """
+    - abbreviations.txt
+    - appendix.txt
+    - cover.png
+    - frontmatter.txt
+    - index.csv
+    - languages.csv
+    - maps/
+    - md.json
+    - references.bib
+    - text.txt
+    - toc.txt
+    """
+    path: pathlib.Path
 
-        for md in self.dir.parent.glob('vol*/md.json'):
+    def __post_init__(self):
+        assert re.fullmatch(r'vol[0-9]', self.path.name), \
+            "Volume dirs are expected to be named vol[0-9]"
+
+    @property
+    def number(self):
+        return self.path.name[-1]
+
+    def id_for_figure(self, type_: Literal['map', 'fig'], number: str) -> Optional[str]:
+        p = self.path / 'maps' / f'{type_}_{number}.png'
+        if p.exists():
+            return f"{type_}-{self.number}-{number.replace('.', '_')}"
+        return None
+
+    def load_metadata(self):
+        return jsonlib.load(self.path / 'md.json')
+
+    def iter_chapter_pages(self) -> Generator[tuple[str, tuple[int, int]], None, None]:
+        """
+        Note: This retrieves metadata for all volumes to make it possible to detect references.
+        """
+        for md in self.path.parent.glob('vol*/md.json'):
             for chap in jsonlib.load(md)['chapters']:
                 s, _, e = chap['pages'].partition('-')
-                self.chapter_pages[
-                    '{}-{}'.format(md.parent.name.replace('vol', ''), chap['number'])] = \
-                    (int(s), int(e))
+                yield (f"{md.parent.name.replace('vol', '')}-{chap['number']}",
+                       (int(s), int(e)))
+
+    @functools.cached_property
+    def text_lines(self) -> list[str]:
+        return self.path.joinpath('text.txt').read_text(encoding='utf8').split('\n')
+
+
+class Volume:
+    """
+    A Volume is the central, citeable unit of data, or a Contribution in CLDF terms.
+
+    The data of a volume is expected to be found in a directory, structured as described for
+    `VolumeDir`.
+
+    `md.json` should specify metadata in the following way:
+    ```json
+    {
+        "title": "Material culture",
+        "chapters": [
+            {
+                "number": "1",
+                "title": "Introduction",
+                "pages": "1-14",
+                "author": "Malcolm Ross and Andrew Pawley and Meredith Osmond"
+            },
+            ...
+        ]
+    }
+    ```
+    """
+    def __init__(
+            self,
+            parser: 'Parser',
+            d: VolumeDir,
+            langs: dict[LanguageIdType, collections.OrderedDict[str, Any]],
+            bib: Source,
+            sources: Sources,
+    ):
+        self.parser: 'Parser' = parser
+        self.dir: VolumeDir = d
+        # We assume single-digit volume numbers, given as last character of the directory name.
+        self.num: str = d.number
+        self.langs = langs
+        self.metadata = self.dir.load_metadata()
+        self._lines = None
+        #
+        # FIXME: bib id prefix must be passed in! It's project-specific!
+        # Maybe we should expect a fully-specified Source to be passed as bib, so that no
+        # post-processing is required.
+        #
+        bib.id = f'tlopo{self.num}'
+        bib['title'] += f' {self.num}: {self.metadata["title"]}'
+        self.bib = bib
+        self.sources = sources
+        self.chapter_pages: dict[str, tuple[int, int]] = dict(self.dir.iter_chapter_pages())
 
     def __str__(self):  # pragma: no cover
         return self.bib['title']
 
-    def match_language(self, s, group=None):
+    def match_language(
+            self,
+            s: str,
+            group: Optional[str] = None,
+    ) -> Optional[tuple[LanguageIdType, Optional[collections.OrderedDict[str, Any]], str]]:
+        """Check if the start of `s` matches a known language in the Volume."""
         for lg in sorted(self.langs, key=lambda ll: -len(ll)):
             if s.startswith(lg):
                 assert group is None or (self.langs[lg]['Group'] == group), (group, lg, s)
@@ -760,9 +861,10 @@ class Volume:
         for k in self.parser.proto_graphemes.keys():
             if s.startswith(k):
                 return k, None, s[len(k):]
+        return None
 
     @functools.cached_property
-    def chapters(self):
+    def chapters(self) -> collections.OrderedDict[ChapterNumberType, Chapter]:
         if not self._lines:
             assert self.reconstructions
         return collections.OrderedDict(
@@ -890,16 +992,15 @@ class Volume:
         return m.sub(repl, s)
 
     @functools.cached_property
-    def reconstructions(self):
-        return list(self._iter_reconstructions(
-            self.dir.joinpath('text.txt').read_text(encoding='utf8').split('\n')))
+    def reconstructions(self) -> list[Reconstruction]:
+        return list(self._iter_reconstructions(self.dir.text_lines))
 
     @functools.cached_property
-    def formgroups(self):
+    def formgroups(self) -> list[FormGroup]:
         return list(self._iter_formgroups())
 
     @functools.cached_property
-    def igts(self):
+    def igts(self) -> list[ExampleGroup]:
         return list(self._iter_igts())
 
     def _iter_reconstructions(self, lines):
@@ -959,25 +1060,42 @@ class Volume:
 
 
 class Parser:
-    def __init__(self,
-                 volumes: typing.List[pathlib.Path],
-                 languoids: typing.Dict[str, typing.Dict],
-                 citation: Source,
-                 sources: Sources,
-                 proto_graphemes: typing.Dict[str, typing.Container[str]],
-                 reflex_graphemes: typing.Container[str],
-                 reflex_groups: typing.List[str],
-                 pos_map: typing.Dict[str, str],
-                 kinship_tags: typing.List[str]):
-        self.proto_graphemes = proto_graphemes
-        self.reflex_graphemes = reflex_graphemes
-        self.languoids = languoids
-        self.witness_pattern = re.compile(r'\s+({})(\s*:\s+)'.format(re_choice(reflex_groups)))
-        self.pos_pattern = re.compile(r'\s*\((?P<pos>{})\s?\)\s*'.format(re_choice(pos_map)))
+    """
+    Parser implements the parsing of the plaintext representation of the EtymDict.
+
+    This parsing is informed by controlled data, listing core entities of the dictionary, such as
+    - the languages
+    - etc.
+    """
+    def __init__(
+            self,
+            volumes: list[pathlib.Path],
+            languoids: dict[LanguageIdType, collections.OrderedDict[str, Any]],
+            citation: Source,
+            sources: Sources,
+            # Graphemes used for proto-forms (per proto-language):
+            proto_graphemes: dict[LanguageIdType, Container[str]],
+            # Graphemes used for reflexes. Since these must be homogenized to enable reconstruction,
+            # we assume just one set to be used for all languages.
+            reflex_graphemes: Container[str],
+            # List of groups of descendant languages. Typically nodes in the reconstruction tree.
+            reflex_groups: list[str],
+            # Mapping of part-of-speech tags.
+            pos_map: dict[str, str],
+            kinship_tags: list[str],
+    ):
+        self.proto_graphemes: dict[str, Container[str]] = proto_graphemes
+        self.reflex_graphemes: Container[str] = reflex_graphemes
+        self.languoids: dict[LanguageIdType, collections.OrderedDict[str, Any]] = languoids
+        self.witness_pattern: re.Pattern[str] = re.compile(
+            r'\s+({})(\s*:\s+)'.format(re_choice(reflex_groups)))
+        self.pos_pattern: re.Pattern[str] = re.compile(
+            r'\s*\((?P<pos>{})\s?\)\s*'.format(re_choice(pos_map)))
         self.pos_map = pos_map
-        self.kinship_pattern = re.compile(r"’\s*(,\s+([♀♂]|\([♀♂]\?\))?({})( etc)?)+".format(
+        self.kinship_pattern: re.Pattern[str] = re.compile(
+            r"’\s*(,\s+([♀♂]|\([♀♂]\?\))?({})( etc)?)+".format(
             re_choice(kinship_tags)))
-        self.proto_pattern = re.compile(
+        self.proto_pattern: re.Pattern[str] = re.compile(
             r'(\((?P<relno>[0-9])\)\s*)?'
             r'(?P<pl>({}))\s+'
             r'(?P<root>root\s+)?'
@@ -987,10 +1105,12 @@ class Parser:
             r'(?P<pfdoubt>\?)?†?\*'.format(
                 re_choice(proto_graphemes.keys()),
                 re_choice(pos_map.keys())))  # FIXME: record dagger!
-        self.volumes = [Volume(self, d, languoids, citation, sources) for d in volumes]
+        self.volumes: list[Volume] = [
+            Volume(self, VolumeDir(d), languoids, citation, sources) for d in volumes]
 
-    def is_forms_line(self, line):
-        return (re.match('-[A-Z]', line) or  # noqa: W504
-                (self.proto_pattern.match(line) or  # noqa: W504
-                 self.witness_pattern.match(line) or  # noqa: W504
+    def is_forms_line(self, line) -> bool:
+        """Identifies a line in a form group or a reflex listed for an etymon."""
+        return (bool(re.match('-[A-Z]', line)) or  # noqa: W504
+                (bool(self.proto_pattern.match(line)) or  # noqa: W504
+                 bool(self.witness_pattern.match(line)) or  # noqa: W504
                  line.strip().startswith(CF_LINE_PREFIX)))

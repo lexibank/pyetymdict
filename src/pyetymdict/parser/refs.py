@@ -1,5 +1,5 @@
 """
-Parsing bibliographic and cross references.
+Parsing bibliographic references and cross references.
 """
 import re
 
@@ -50,10 +50,12 @@ def search(s, *keys, **kw):
             yield key, m.string[m.start():m.end()], m.groupdict()
 
 
-def repl_ref(srcid, m):
-    matched_string = m.string[m.start():m.end()]
+def repl_ref(srcid: str, m: re.Match[str]) -> str:
+    """Replace references matching `srcid` with a CLDF Markdown link."""
+    matched_string: str = m.string[m.start():m.end()]
 
-    # Figure out if we are already within a link label!
+    # Figure out if we are already within a link label, by checking if there's an unmatched
+    # opening square bracket within 30 characters.
     for i in range(30):
         c = None
         try:

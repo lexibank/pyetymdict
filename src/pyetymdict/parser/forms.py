@@ -18,8 +18,9 @@ True
 True
 """
 import re
-import typing
 import unicodedata
+from collections.abc import Generator
+from typing import Optional, TypedDict
 
 from clldutils.text import split_text_with_context
 
@@ -110,7 +111,11 @@ def iter_graphemes(s):
         yield g
 
 
-def parse_protoform(f, phonemes, allow_rem=True) -> typing.Tuple[typing.List[str], str]:
+def parse_protoform(
+        f,
+        phonemes,
+        allow_rem=True,
+) -> tuple[list[str], str]:
     """
     Assumes a string `f` immediately following a protoform marker `*`. Then consumes graphemes as
     long as they match the grapheme inventory for the proto-language.
@@ -202,19 +207,23 @@ def get_quotes(s):
     return "‘’" if "‘" in s else "''"
 
 
-class GlossDict(typing.TypedDict):
-    gloss: typing.Optional[str]
-    morpheme_gloss: typing.Optional[str]
-    pos: typing.Optional[str]
-    species: typing.Optional[str]
-    fn: typing.Optional[str]
+class GlossDict(TypedDict):
+    gloss: Optional[str]
+    morpheme_gloss: Optional[str]
+    pos: Optional[str]
+    species: Optional[str]
+    fn: Optional[str]
     comments: list
-    qualifier: typing.Optional[str]
-    uncertain: typing.Optional[bool]
-    sources: typing.Optional[list]
+    qualifier: Optional[str]
+    uncertain: Optional[bool]
+    sources: Optional[list]
 
 
-def iter_glosses(s, pos_pattern, kinship_pattern=None) -> typing.Generator[GlossDict, None, None]:
+def iter_glosses(
+        s,
+        pos_pattern,
+        kinship_pattern=None,
+) -> Generator[GlossDict, None, None]:
     quotes = get_quotes(s)
 
     gloss, pos, qualifier, fn, uncertain, comments = None, None, None, None, False, []

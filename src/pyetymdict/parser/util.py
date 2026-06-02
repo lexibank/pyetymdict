@@ -1,14 +1,20 @@
+"""
+Utilities
+"""
 import re
 import collections
+from collections.abc import Iterable
 
 fn_pattern = re.compile(r'\[(?P<fn>[0-9]+)]')  # [2]
 
 
-def re_choice(items):
+def re_choice(items: Iterable[str]) -> str:
+    """Turn items into a list of alternatives suitable for a regex pattern."""
     return r'|'.join(re.escape(i) for i in sorted(items, key=lambda ii: (-len(ii), ii)))
 
 
-def strip_morphemeseparator(f):
+def strip_morphemeseparator(f: str) -> str:
+    """Remove morpheme separators from start or end of string."""
     if f.startswith('-'):
         return '-' + strip_morphemeseparator(f[1:])
     if f.endswith('-'):
@@ -16,12 +22,17 @@ def strip_morphemeseparator(f):
     return f.replace('-', '')
 
 
-def variants(f):
-    # a(x)b -> axb, ab
-    # a(x,y)b -> axb, ayb
-    # a((x,y))b -> axb, ayb, ab
+def variants(f: str) -> list[str]:  # pylint: disable=R0912
+    """
+    Enumerate the form variants implied by bracket-notation in a reconstructed form.
+
+    a(x)b -> axb, ab
+    a(x,y)b -> axb, ayb
+    a((x,y))b -> axb, ayb, ab
+    """
     v = []
     level = 0
+    # Prefix is everything up to a bracket, bracketed is stuff in brackets (including the brackets):
     prefix, bracketed = '', ''
     i = -1
     for i, c in enumerate(f):
@@ -33,17 +44,20 @@ def variants(f):
             level += 1
             if level > 1:
                 bracketed += c
-        elif c in ')]':
+            continue
+
+        if c in ')]':
             level -= 1
             if level == 0:
                 break  # The remainder has to be dealt with recursively!
             bracketed += c
-        else:
-            bracketed += c
+            continue
+
+        bracketed += c
 
     if bracketed:
         if any(cc in bracketed for cc in '(['):  # Need to recurse.
-            assert '),' not in bracketed
+            assert '),' not in bracketed, "Comma in nested brackets."
             v = [prefix + vv for vv in variants(bracketed)]
             if prefix:
                 v.append(prefix)
@@ -65,13 +79,16 @@ def variants(f):
     return [strip_morphemeseparator(vv) for vv in sorted(v)]
 
 
-def nested_toc(items):
+def nested_toc(items: Iterable[tuple[int, str, str]]) -> list[tuple[str, str, list]]:
+    """
+    Turn section titles with level into a nested structure.
+    """
     def d2l(sid, title, children):
-        return [
+        return (
             sid,
             title,
             [d2l('-'.join([sid, ssid]) if sid else ssid, i[0], i[1])
-             for ssid, i in children.items()] if children else []]
+             for ssid, i in children.items()] if children else [])
 
     sections = ('', collections.OrderedDict())
     for level, sid, title in items:

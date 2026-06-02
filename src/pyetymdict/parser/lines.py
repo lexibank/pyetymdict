@@ -1,20 +1,31 @@
 """
 Parse line-level markup.
+
+Some of the functionlity in this module requires a Parser instance, which will typically be passed
+as first argument. So, in a sense, this module provides methods for a Parser.
 """
 import re
 import functools
+from collections.abc import Generator, Iterable, Sequence
+from typing import Union, Optional, TYPE_CHECKING, Literal
 
 from tabulate import tabulate
 
 from .util import fn_pattern
 
-CF_LINE_PREFIX = 'cf. also'
+if TYPE_CHECKING:
+    from .models import Parser, VolumeDir
 
-h1_pattern = re.compile(
+CF_LINE_PREFIX = 'cf. also'  # Identifies the start of form group, appended to an etymon.
+
+#
+# FIXME: Should these patterns be configurable?
+#
+h1_pattern = re.compile(  # Identifies chapter headers.
     r'(?P<a>\d+)\.?\s+(?P<title>([_‘♂])?[A-Z].+)')
-h2_pattern = re.compile(
+h2_pattern = re.compile(  # Identifies section headers.
     r'(?P<a>\d+)(\.|\s)\s*(?P<b>\d+)\.?\s+(?P<title>([_‘♂])?[A-Z].+)')
-h3_pattern = re.compile(
+h3_pattern = re.compile(  # Identifies subsection headers.
     r'(?P<a>\d+)(\.|\s)\s*(?P<b>\d+)(\.|\s)\s*(?P<c>\d+)\.?\s+(?P<title>([_‘♂])?[*mA-Z].+)')
 h4_pattern = re.compile(
     r'(?P<a>\d+)(\.|\s)\s*(?P<b>\d+)(\.|\s)\s*(?P<c>\d+)(\.|\s)\s*(?P<d>\d+)\.?\s+'
@@ -25,16 +36,21 @@ h5_pattern = re.compile(
 _pageno_right_pattern = re.compile(r'(\x0c|###newpage###)\s+\D+(?P<no>\d+)')
 _pageno_left_pattern = re.compile(r'(\x0c|###newpage###)(?P<no>\d+)\s+\D+')
 
+# Identifies maps or figures:
 map_pattern = re.compile(r'(?P<type>Map|Figure)\s+(?P<num>[0-9]+[a-z]*(\.[0-9]+)?):')
 
+CfGroupType = tuple[str, list[str]]  # A group "name" (often just "cf. also") and the list of lines.
 
-def match_pageno(line):
+
+def match_pageno(line: str) -> Optional[str]:
     m = _pageno_left_pattern.fullmatch(line) or _pageno_right_pattern.fullmatch(line)
     if m:
         return m.group('no')
+    return None
 
 
-def formblock(parser, lines):
+def formblock(parser: 'Parser', lines: Iterable[str]) -> tuple[list[str], list[CfGroupType]]:
+    """Partitions lines into a list of regular form lines and an optional list of cf-groups."""
     reg, cfs = [], []
     in_cf, cf, cfspec = False, [], None
 
@@ -60,15 +76,27 @@ def igt_group(parser, lines):
     return lines
 
 
-def make_paragraph(lines, voldir) -> str:
+def make_paragraph(lines: Sequence[str], voldir: 'VolumeDir') -> str:
     """
-    Lines starting with "|" are a quote.
-    If first line is __ul__ ...
-    If firts line is __pre__ ...
-    Figure ...
-    Map ...
+    Our parser understands some sort of paragraph markup.
+    Paragraphs are contiguous, non-empty lines.
+
+    In particular:
+    - A paragraph of lines all starting with "|" is interpreted as blockquote and
+    - so are lines following a line "__blockquote__".
+    - A paragraph with first line "__formgroup__" is interpreted as form group.
+    - A paragraph with first line "__ul__" is interpreted as unordered list where each line is one
+      item.
+    - A paragraph with first line "__block__" is interpreted as list of newline-separated lines.
+    - A paragraph with first line "__pre__" is interpreted as preformatted text.
+    - A paragraph with first line "__table__" is interpreted as list of header and table rows.
+    - A paragraph with first line "__tablenh__" is interpreted as list of table rows.
+    - A paragraph starting with "Map|Figure [0-9]+[a-z]:" is interpreted as figure and converted
+      to CLDF Markdown link referencing the corresponding file in MediaTable.
+    - A paragraph where the second line starts with ":" is interpreted as definition list.
+    - Otherwise the lines are interpreted as contiguous text and returned concatenated.
     """
-    m = re.match(r'\:\s+\_*Table\s+(?P<num>[0-9\.]+)\_*', lines[0])
+    m = re.match(r':\s+_*Table\s+(?P<num>[0-9.]+)_*', lines[0])
     if m:
         return '<a id="table-{}"> </a>\n\n{}'.format(m.group('num'), '\n'.join(lines))
     if lines[0].startswith('|'):
@@ -99,13 +127,9 @@ def make_paragraph(lines, voldir) -> str:
     # __formset__, figure, map. __html__
     m = map_pattern.match(lines[0])
     if m:  # Turn figures and maps into CLDF Markdown links referencing MediaTable items.
-        mtype = 'map' if m.group('type').lower() == 'map' else 'fig'
-        fid = '{}-{}-{}'.format(
-            mtype,
-            voldir.name.replace('vol', ''),
-            m.group('num').replace('.', '_'))
-        p = voldir / 'maps' / '{}_{}.png'.format(mtype, m.group('num'))
-        if p.exists():
+        mtype: Literal['map', 'fig'] = 'map' if m.group('type').lower() == 'map' else 'fig'
+        fid = voldir.id_for_figure(mtype, m.group('num'))
+        if fid:
             caption = ' '.join(ln.strip() for ln in lines)
             label, _, caption = caption.partition(':')
             return """\
@@ -117,24 +141,27 @@ def make_paragraph(lines, voldir) -> str:
     return ' '.join(ln.strip() for ln in lines)
 
 
-def make_chapter(paras):
+def make_chapter(paras: Iterable[str]) -> str:
     """
     If first line starts with footnote pattern, it's the footnote content.
     """
+    def repl(m):
+        return f"[^{m.group('fn')}]:"
+
     regular, endnotes = [], []
     for para in paras:
         if fn_pattern.match(para):
-            endnotes.append(fn_pattern.sub(lambda m: '[^{}]:'.format(m.group('fn')), para, count=1))
+            endnotes.append(fn_pattern.sub(repl, para, count=1))
         else:
-            regular.append(fn_pattern.sub(lambda m: '[^{}]'.format(m.group('fn')), para))
+            regular.append(fn_pattern.sub(repl, para))
     return '\n\n'.join(regular + ['\n## Notes'] + endnotes)
 
 
-def iter_chapters(lines, voldir):
+def iter_chapters(lines, voldir) -> Generator[tuple[str, str, list], None, None]:
     from .forms import strip_footnote_reference
 
     chapter, toc, para = [], [], []
-    in_chapter = None
+    in_chapter: Union[str, None] = None
     for line in lines:
         m = h1_pattern.match(line)
         if m:
@@ -186,7 +213,13 @@ def iter_chapters(lines, voldir):
     yield in_chapter, make_chapter(chapter), toc
 
 
-def extract_blocks(parser, lines, factory=formblock, start='<', end='>'):
+def extract_blocks(
+        parser,
+        lines,
+        factory=formblock,
+        start='<',
+        end='>',
+):
     pageno = -1
     block = []
     h1, h2, h3 = None, None, None

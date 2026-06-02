@@ -1,5 +1,6 @@
 import pytest
 
+from pyetymdict.parser.models import VolumeDir
 from pyetymdict.parser.lines import *
 
 
@@ -13,7 +14,7 @@ from pyetymdict.parser.lines import *
 def test_make_paragraph(i, o, tmp_path):
     tmp_path.joinpath('vol1', 'maps').mkdir(parents=True)
     tmp_path.joinpath('vol1', 'maps', 'fig_1.png').write_text('t')
-    assert o(make_paragraph(i, tmp_path / 'vol1'))
+    assert o(make_paragraph(i, VolumeDir(tmp_path / 'vol1')))
 
 
 def test_iter_chapters(tmp_path):

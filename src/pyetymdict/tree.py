@@ -1,3 +1,6 @@
+"""
+Functionality related to an EtymDicts reconstruction tree.
+"""
 import typing
 
 import pycldf
@@ -5,9 +8,11 @@ from pycldf.trees import TreeTable
 import newick
 
 
-def reconstruction_tree(cldf: pycldf.Dataset,
-                        cognateset: typing.Union[str, list],
-                        language_attr=None) -> newick.Node:
+def reconstruction_tree(
+        cldf: pycldf.Dataset,
+        cognateset: typing.Union[str, list],
+        language_attr=None,
+) -> newick.Node:
     """
     Plot (proto-)forms from a cognate set on a language tree.
 
@@ -38,7 +43,7 @@ def reconstruction_tree(cldf: pycldf.Dataset,
         form, lid = form.cldf.value, form.cldf.languageReference
         if lid in lids:
             if language_attr:
-                pfs[lid] = '{} {}'.format(language_attr[lid], form)
+                pfs[lid] = f'{language_attr[lid]} {form}'
             else:
                 pfs[lid] = form
     tree.rename(auto_quote=True, **pfs)

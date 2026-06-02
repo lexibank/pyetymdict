@@ -1,3 +1,6 @@
+"""
+Functionality related to the to-be-standardized EtymDict module.
+"""
 from .tree import reconstruction_tree
 from .dataset import Dataset, Form, Language
 
