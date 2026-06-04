@@ -3,7 +3,8 @@ import re
 import pytest
 
 from pyetymdict.parser.forms import *
-from pyetymdict.parser.lines import extract_etyma
+from pyetymdict.parser.spec import BLOCKS
+from pyetymdict.parser.lines import extract_blocks, formblock
 
 
 @pytest.mark.parametrize(
@@ -107,21 +108,21 @@ POc *pale 'open-sided building'
 >
 
 """
-    h1, h2, h3, pageno, et = list(extract_etyma(parser, lines.split('\n')))[0]
-    assert pageno == 49
-    assert h1 == ('1', 'H1')
-    assert h2 == ('1', 'H2')
-    assert h3 == ('1', 'H3')
-    forms = et
-    forms, cfs = forms
+    etymon = list(extract_blocks(BLOCKS['etymon'], lines.split('\n')))[0]
+    assert etymon.pagenumber == 49
+    assert etymon.chapter == ('1', 'H1')
+    assert etymon.section == ('1', 'H2')
+    assert etymon.subsection == ('1', 'H3')
+
+    forms, cfs = formblock(parser, etymon.lines)
     assert len(forms) == 3
     assert cfs and cfs[0][0] == 'loans' and len(cfs[0][1]) == 1
 
-    gen = extract_etyma(parser, lines.split('\n'))
-    et = next(gen)[-1][0][0]
+    gen = extract_blocks(BLOCKS['etymon'], lines.split('\n'))
+    next(gen)
     while True:
         try:  # Send the proto-language of the first reconstruction into the generator.
-            et = gen.send('xyz')
+            gen.send('xyz')
         except StopIteration as e:
             text = e.value
             break

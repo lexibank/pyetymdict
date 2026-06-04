@@ -2,20 +2,6 @@
 Low-level parsing functionality for the pre-processed OCR text of the TloPO volumes.
 
 What about the ca. 50 food plants reconstructions - without witnesses?
-
-comparing with data from Mae:
-
->>> s1 = "ūŋ-wūŋ"
->>> s2 = "ūŋ-wūŋ"
->>> len(s1)
-8
->>> len(s2)
-6
->>> import unicodedata
->>> unicodedata.normalize('NFC', s1) == s2
-True
->>> unicodedata.normalize('NFD', s2) == s1
-True
 """
 import re
 import unicodedata
@@ -24,7 +10,7 @@ from typing import Optional, TypedDict
 
 from clldutils.text import split_text_with_context
 
-from .util import fn_pattern
+from .spec import FOOTNOTE_PATTERN
 
 __all__ = [
     'iter_graphemes', 'parse_protoform', 'strip_comment', 'strip_footnote_reference',
@@ -39,13 +25,13 @@ morpheme_gloss_pattern = re.compile(r'\[(?P<g>[A-Za-z:\-= 1-3/.()?,]+)]')
 
 def strip_footnote_reference(rem, start_only=False):
     fn, position = None, None
-    m = fn_pattern.match(rem)
+    m = FOOTNOTE_PATTERN.match(rem)
     if m:
         fn = m.group('fn')
         rem = rem[m.end():].strip()
         position = 'start'
     elif not start_only:
-        m = fn_pattern.search(rem)
+        m = FOOTNOTE_PATTERN.search(rem)
         if m and m.end() == len(rem):  # strip footnote from end.
             fn = m.group('fn')
             rem = rem[:m.start()].strip()
@@ -127,6 +113,8 @@ def parse_protoform(
     x-y       x and y are separate morphemes
     x-        x takes an enclitic or a suffix
     <x>       x is an infix
+
+    Multi-word forms must be enclosed in pipes, e.g. |multi word|.
     """
     if f.startswith('|'):  # multi-word protoform
         assert '|' in f[1:], f

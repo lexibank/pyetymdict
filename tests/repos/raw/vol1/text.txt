@@ -56,6 +56,6 @@ __formgroup__
  Adm: Language word
 
 __formgroup__
- Adm: Language word
+ Adm: Language words
 
 The end

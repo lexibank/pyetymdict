@@ -2,10 +2,38 @@
 Utilities
 """
 import re
+import functools
 import collections
 from collections.abc import Iterable
 
-fn_pattern = re.compile(r'\[(?P<fn>[0-9]+)]')  # [2]
+
+def cldf_markdown_link(component: str, id_: str, label: str = None, anchor: str = None) -> str:
+    """A CLDF Markdown link as string"""
+    anchor = '?anchor=' + anchor if anchor else ''
+    label = label or id_
+    return f"[{label}]({component}{anchor}#cldf:{id_})"
+
+
+cldf_source_link = functools.partial(cldf_markdown_link, 'Source')
+cldf_contribution_link = functools.partial(cldf_markdown_link, 'ContributionTable')
+cldf_media_link = functools.partial(cldf_markdown_link, 'MediaTable')
+
+
+def polish_text(text):
+    """Normalize ellipsis, make sure asterisks are escaped to make them work in Markdown."""
+    text = re.sub(r'\s*\.\s*\.\s*\.\s*', ' … ', text)
+    return text.replace('*', '&ast;')
+
+
+def markdown_escape(s: str) -> str:
+    """Escape characters that have a special meaning in Markdown."""
+    for k, v in {
+        "*": "&ast;",
+        "[": "&#91;",
+        "]": "&#93;",
+    }.items():
+        s = s.replace(k, v)
+    return s
 
 
 def re_choice(items: Iterable[str]) -> str:

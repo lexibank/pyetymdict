@@ -55,13 +55,12 @@ def repos():
 
 @pytest.fixture(scope='session')
 def parser(repos):
-    from pyetymdict.parser.models import Parser
+    from pyetymdict.parser.spec import Parser
 
     return Parser(
+        'pid',
         [repos / 'raw' / 'vol1'],
         {r['Name']: r for r in reader(repos / 'etc' / 'languages.csv', dicts=True)},
-        Source.from_bibtex('@book{b,\nauthor={a},\ntitle={the title}}'),
-        Sources.from_file(repos / 'etc' / 'sources.bib'),
         {
             'POc': list(string.ascii_lowercase),
             'PMP': list(string.ascii_lowercase),
@@ -70,9 +69,13 @@ def parser(repos):
         ['Adm', 'NNG'],
         pos_map={'N': 'N', 'V': 'V', 'VT': 'VT'},
         kinship_tags=['PZ'],
+        citation_template=Source('book', 'pid', title='The Dict'),
     )
 
 
 @pytest.fixture(scope='session')
-def volume1(parser):
-    return parser.volumes[0]
+def volume1(parser, repos):
+    from pyetymdict.parser.models import Volume
+
+    sources = Sources.from_file(repos / 'etc' / 'sources.bib')
+    return Volume(parser, parser.volumes[0], parser.languoids, sources)

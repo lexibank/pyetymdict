@@ -1,5 +1,6 @@
 import pytest
 
+from pyetymdict.parser.lines import Block
 from pyetymdict.parser.models import *
 
 
@@ -59,7 +60,10 @@ def test_comment_or_sources(volume1):
 
 
 def test_ExampleGroup(volume1):
-    eg = ExampleGroup.from_data(1, volume1, (1, 'C'), (1, 'S'), (1, 'SS'), 10, """\
+    _ = ExampleGroup.from_block(
+        1,
+        volume1,
+        Block(type='igt', chapter=(1, 'C'), section=(1, 'S'), subsection=(1, 'SS'), lines="""\
     (1) Language (Adm): (Author 2000:204, 231)
     a. Au   rabe.
        s:1s kick
@@ -67,13 +71,16 @@ def test_ExampleGroup(volume1):
     b. Au    rabe-t-a     a   polo.
        s:1s  kick-TR-O:3s ART ball
        'I'm kicking the ball.'\
-""".split('\n'))
-    eg = ExampleGroup.from_data(1, volume1, (1, 'C'), (1, 'S'), (1, 'SS'), 10, """\
+""".split('\n')))
+    _ = ExampleGroup.from_block(
+        1,
+        volume1,
+        Block(type='igt', chapter=(1, 'C'), section=(1, 'S'), pagenumber=10, lines="""\
 1) a. Language (Adm)
        Au   rabe.
        s:1s kick
        'I'm kicking.'\
-""".split('\n'))
+""".split('\n')))
 
 
 
@@ -152,14 +159,17 @@ def test_Reflex_with_bad_form(volume1):
 
 
 def test_FormGroup(volume1):
-    fg = FormGroup.from_data(
+    fg = FormGroup.from_block(
+        0,
         volume1,
-        ('2', 'Chapter'),
-        ('3', 'Section'),
-        ('4', 'Subsection'),
-        '123',
-        [" Adm: Language  form 'gloss'"]
-    )
+        Block(
+            type='formgroup',
+            chapter=('2', 'Chapter'),
+            section=('3', 'Section'),
+            subsection=('4', 'Subsection'),
+            pagenumber='123',
+            lines=[" Adm: Language  form 'gloss'"]
+    ))
     assert len(fg.forms) == 1
     assert fg.forms[0].lang == 'Language'
     assert fg.id == '1-2-3-4-123-adm-language-form'
@@ -168,33 +178,38 @@ def test_FormGroup(volume1):
 
 
 def test_Reconstruction(volume1):
-    rec = Reconstruction.from_data(
-        volume1,
-        ('2', 'Chapter'),
-        ('3', 'Section'),
-        ('4', 'Subsection'),
-        '123',
-        ("""\
+    block = Block(
+        type='etymon',
+        chapter=('2', 'Chapter'),
+        section=('3', 'Section'),
+        subsection=('4', 'Subsection'),
+        pagenumber='123',
+        lines="""\
 POc *mata 'eye'
--sg1
- Adm: Language form 'gloss'""".split('\n'), [('loans', [" Adm: Language loan 'yes'"])])
-    )
-    assert rec.reflexes[1].subgroup == 'sg1'
-    assert rec.poc_gloss == 'eye'
+-Sg1
+  Adm: Language form 'gloss'
+cf. also: loans
+  Adm: Language loan 'yes'""".split('\n'))
 
-    rec = Reconstruction.from_data(
+    rec = Reconstruction.from_block(0, volume1, block)
+    assert rec.reflexes[1].subgroup == 'Sg1'
+
+    rec = Reconstruction.from_block(
+        0,
         volume1,
-        ('2', 'Chapter'),
-        ('3', 'Section'),
-        ('4', 'Subsection'),
-        '123',
-        ("""\
+        Block(
+            type='etymon',
+            chapter=('2', 'Chapter'),
+            section=('3', 'Section'),
+            subsection=('4', 'Subsection'),
+            pagenumber='123',
+            lines="""\
 PMP *mata 'eye'
--sg1
- Adm: Language form 'gloss'""".split('\n'), [('loans', [" Adm: Language loan 'yes'"])])
+-Sg1
+ Adm: Language form 'gloss'""".split('\n'))
     )
-    assert rec.first_oceanic_protoform.lang == 'PMP'
     assert str(rec)
+    assert {rec: True}
 
 
 def test_Volume(volume1):
@@ -203,6 +218,7 @@ def test_Volume(volume1):
     assert len(volume1.igts) == 2
     assert len(volume1.formgroups) == 2
     assert len(list(list(volume1.chapters.values())[0].iter_sections())) == 3
+    assert volume1.match_language('non-existing') is None
 
 
 @pytest.mark.parametrize(

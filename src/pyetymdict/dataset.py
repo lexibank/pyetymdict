@@ -100,7 +100,7 @@ class Dataset(pylexibank.Dataset):
             self,
             writer: CLDFWriter,
             tree_newick_string: str,
-            names: Optional[dict[str,str]] = None,
+            names: Optional[dict[str, str]] = None,
             separate_file: bool = False,
             description: str = 'The tree structure of the reconstruction levels',
     ):

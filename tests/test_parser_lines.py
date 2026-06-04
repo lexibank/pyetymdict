@@ -4,6 +4,13 @@ from pyetymdict.parser.models import VolumeDir
 from pyetymdict.parser.lines import *
 
 
+@pytest.fixture
+def volume_dir(tmp_path):
+    d = tmp_path / 'vol1'
+    d.mkdir()
+    return VolumeDir(d)
+
+
 @pytest.mark.parametrize(
     'i,o',
     [
@@ -11,13 +18,19 @@ from pyetymdict.parser.lines import *
         (['Figure 1: Cap'], lambda s: 'fig-1-1' in s and 'Cap]' in s),
     ]
 )
-def test_make_paragraph(i, o, tmp_path):
-    tmp_path.joinpath('vol1', 'maps').mkdir(parents=True)
-    tmp_path.joinpath('vol1', 'maps', 'fig_1.png').write_text('t')
-    assert o(make_paragraph(i, VolumeDir(tmp_path / 'vol1')))
+def test_make_paragraph(i, o, volume_dir):
+    volume_dir.path.joinpath('maps').mkdir(parents=True)
+    volume_dir.path.joinpath('maps', 'fig_1.png').write_text('t')
+    assert o(make_paragraph(i, volume_dir))
 
 
-def test_iter_chapters(tmp_path):
+def test_iter_chapters_no_chapter(volume_dir):
+    res = list(iter_chapters("Just text".split() + ['', 'text'], volume_dir))
+    assert len(res) == 1
+    assert res[0] == (None, 'Just text\n\ntext', [])
+
+
+def test_iter_chapters(volume_dir):
     chapters = list(iter_chapters("""\
 
 1 Chapter
@@ -65,7 +78,7 @@ item
 2 Next chapter
 
 
-""".split('\n'), tmp_path))
+""".split('\n'), volume_dir))
     inchapter, text, toc = chapters[0]
     assert inchapter
     assert 'merge lines' in text, 'Lines in regular parapgraph not concatenated'
