@@ -8,6 +8,7 @@ from csvw.dsv import reader
 from pycldf.sources import Source, Sources
 
 from pyetymdict import Dataset
+from pyetymdict.languoids import Languoids
 
 
 @pytest.fixture
@@ -22,11 +23,11 @@ def ds(tmp_path):
         dir = tmp_path
 
         def cmd_makecldf(self, args):
-            self.schema(args.writer.cldf, with_cf=False)
+            self.schema(args.writer.cldf, with_cf=False, with_contributions=False)
             args.writer.cldf.add_sources('@misc{key,\ntitle={t}}')
             args.writer.objects['LanguageTable'].append(dict(ID='r', Name='root', Is_Proto=True))
-            args.writer.objects['LanguageTable'].append(dict(ID='l1', Name='language1', Is_Proto=False))
-            args.writer.objects['LanguageTable'].append(dict(ID='l2', Name='language2', Is_Proto=False))
+            args.writer.objects['LanguageTable'].append(dict(ID='l1', Name='language1', Group='Adm', Is_Proto=False))
+            args.writer.objects['LanguageTable'].append(dict(ID='l2', Name='language2', Group='NNG', Is_Proto=False))
             self.add_tree(args.writer, '(l2,l1)root', names={'root': 'r', 'l1': 'l1', 'l2': 'l2'})
             args.writer.objects['ParameterTable'].append(dict(ID='p1'))
             args.writer.objects['FormTable'].append(
@@ -56,19 +57,17 @@ def repos():
 @pytest.fixture(scope='session')
 def parser(repos):
     from pyetymdict.parser.spec import Parser
+    from pyetymdict.dataset import Dataset
+
+    class DS(Dataset):
+        dir = repos
+        id = 'test'
 
     return Parser(
         'pid',
         [repos / 'raw' / 'vol1'],
-        {r['Name']: r for r in reader(repos / 'etc' / 'languages.csv', dicts=True)},
-        {
-            'POc': list(string.ascii_lowercase),
-            'PMP': list(string.ascii_lowercase),
-        },
-        list(string.ascii_lowercase),
-        ['Adm', 'NNG'],
+        Languoids.from_dataset(DS()),
         pos_map={'N': 'N', 'V': 'V', 'VT': 'VT'},
-        kinship_tags=['PZ'],
         citation_template=Source('book', 'pid', title='The Dict'),
     )
 

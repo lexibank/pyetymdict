@@ -14,10 +14,10 @@ from pyigt import IGT, LGRConformance
 
 from .spec import (Parser, VolumeDir, LanguageIdType, ChapterNumberType, BLOCKS, BlockParseSpec)
 from .forms import (
-    parse_protoform, iter_graphemes, iter_glosses, GlossDict, get_quotes,
+    parse_protoform, iter_glosses, RawGloss, get_quotes,
     strip_footnote_reference, strip_comment
 )
-from .lines import Block, formblock, extract_blocks, iter_chapters, HeaderType
+from .lines import Block, formblock, extract_blocks, iter_chapters, HeaderType, TocItemType
 from .util import markdown_escape, polish_text, cldf_markdown_link
 from . import refs
 
@@ -56,7 +56,14 @@ class Reference:
 @dataclasses.dataclass(eq=False)
 class DataReference:
     """
-    An object in the CLDF dataset, extracted from the raw data and re-inserted when rendering.
+    An reference to an object in the CLDF dataset, extracted from the raw data and re-inserted
+    when rendering.
+
+    Instances of this class are responsible for storing enough identifying information to make this
+    process work.
+
+    The location information gleaned from the containing text which is stored with this base class
+    will be filled in when using `extract_blocks` to parse the text.
     """
     volume: Optional[str] = None
     chapter: Optional[HeaderType] = None
@@ -66,10 +73,15 @@ class DataReference:
 
     __table__ = None
 
-    def subkey(self):
+    def subkey(self) -> list[str]:
+        """
+        Subclasses can use this method to add more identifying information, possibly derived from
+        the extracted data.
+        """
         return []  # pragma: no cover
 
     def key(self) -> tuple:
+        """The constituents of the referenced object's identifier."""
         if not self.section:
             raise ValueError(str(self))  # pragma: no cover
         return tuple([
@@ -81,7 +93,8 @@ class DataReference:
         ] + list(self.subkey()))
 
     @property
-    def id(self):
+    def id(self) -> str:
+        """The identifier."""
         return '-'.join(str(s) for s in self.key())
 
     def __hash__(self):
@@ -91,44 +104,12 @@ class DataReference:
         return self.key() == other.key()
 
     def cldf_markdown_link_label(self) -> str:
+        """The label to use for a CLDF Markdown link constructed for the reference."""
         return self.id
 
     def cldf_markdown_link(self) -> str:
         """The reference formatted as CLDF Markdown link."""
         return cldf_markdown_link(self.__table__, self.id, label=self.cldf_markdown_link_label())
-
-
-@dataclasses.dataclass(eq=False)
-class FormGroup(DataReference):
-    """
-    Groups of (not necessarily cognate) forms. E.g. forms appended to an etymon as "cf." forms,
-    often loanwords, which are not to be confused with proper cognates.
-    """
-    forms: list = None
-    __table__ = 'cf.csv'
-
-    def subkey(self):
-        """
-        We assume that there are no two form groups starting with the same form in the same section.
-        """
-        f = self.forms[0]
-        return (slug(f.group), slug(f.lang), slug(f.forms[0]))
-
-    @classmethod
-    def from_block(cls, _: int, vol: 'Volume', block: Block) -> 'FormGroup':
-        assert all(vol.parser.is_forms_line(line) for line in block.lines), block.lines
-        forms = [
-            Reflex.from_line(vol, line)
-            for line in block.lines if vol.parser.reflex_pattern.match(line)]
-        assert forms, (vol.dir.number, block.lines)
-        return cls(
-            volume=str(vol.dir.number),
-            chapter=block.chapter,
-            section=block.section,
-            subsection=block.subsection,
-            page=block.pagenumber,
-            forms=forms,
-        )
 
 
 @dataclasses.dataclass
@@ -392,28 +373,27 @@ class Gloss:
         return self.key() == other.key()
 
     @classmethod
-    def from_dict(cls, vol, d: GlossDict):
-        d['sources'] = []
-        if d['comments']:
+    def from_dict(cls, vol, d: RawGloss):
+        if d.comments:
             cmts = []
-            for cmt in d['comments']:
+            for cmt in d.comments:
                 cmt, srcs = comment_or_sources(vol, cmt)
                 if cmt:
                     cmts.append(cmt)
                 elif srcs:
-                    d['sources'] = srcs
-            d['comments'] = cmts
+                    d.sources = srcs
+            d.comments = cmts
 
         return cls(
-            fn=d['fn'],
-            pos=d['pos'],
-            gloss=d['gloss'],
-            comment="; ".join(d['comments'] or []),
-            morpheme_gloss=d['morpheme_gloss'],
-            species=d['species'],
-            qualifier=d['qualifier'],
-            doubt=d['uncertain'],
-            sources=d['sources'] or [])
+            fn=d.fn,
+            pos=d.pos,
+            gloss=d.gloss,
+            comment="; ".join(d.comments or []),
+            morpheme_gloss=d.morpheme_gloss,
+            species=d.species,
+            qualifier=d.qualifier,
+            doubt=d.uncertain,
+            sources=d.sources or [])
 
 
 @dataclasses.dataclass
@@ -463,7 +443,7 @@ class Protoform(Form):
         fn = (m.group('fn') or '').replace('[', '').replace(']', '').strip() or None
         rem = line[m.end(0):].strip()
 
-        forms, rem = parse_protoform(rem, vol.parser.proto_graphemes[kw['lang']])
+        forms, rem = parse_protoform(rem, vol.parser.graphemes[kw['lang']])
         "('‘?["
         if rem.startswith('?'):
             kw['pfdoubt'] = True
@@ -504,11 +484,10 @@ class Protoform(Form):
         if rem:
             # Now consume the gloss.
             kw['glosses'] = []
-            for i, g in enumerate(
-                    iter_glosses(rem, vol.parser.pos_pattern, vol.parser.kinship_pattern)):
+            for i, g in enumerate(iter_glosses(rem, vol.parser.pos_pattern)):
                 if i == 0 and pos:
-                    assert not g['pos'], line
-                    g['pos'] = pos
+                    assert not g.pos, line
+                    g.pos = pos
                 kw['glosses'].append(Gloss.from_dict(vol, g))
 
         for g in kw['glosses']:
@@ -566,10 +545,13 @@ class Reflex(Form):
             rem = ' '.join(rem_comps)
 
         for w in words:
-            for c in iter_graphemes(w):
-                if c != ',':
-                    if c not in vol.parser.reflex_graphemes:
-                        raise ValueError(c, w, rem, line)  # pragma: no cover
+            #
+            # check if there's a profile, look up from parser?, then segment.
+            #
+            for c in w:  # FIXME: properly segment using a profile later!
+                if c not in ',[]':
+                    if c not in vol.parser.graphemes[lang]:  # vol.parser.reflex_graphemes(lang)
+                        raise ValueError(c, w, rem, line, vol.parser.graphemes[lang])  # pragma: no cover
 
         rem, ffn, pos = strip_footnote_reference(rem, start_only=True)
         assert not (lfn and ffn)
@@ -577,7 +559,7 @@ class Reflex(Form):
         assert lang, line
         glosses = [
             Gloss.from_dict(vol, g)
-            for g in iter_glosses(rem, vol.parser.pos_pattern, vol.parser.kinship_pattern)]
+            for g in iter_glosses(rem, vol.parser.pos_pattern)]
         for g in glosses:
             if g.fn:
                 assert not fn
@@ -591,6 +573,56 @@ class Reflex(Form):
             footnote_number=fn,
             morpheme_gloss=glosses[0].morpheme_gloss if glosses else None,
             subgroup=subgroup,
+        )
+
+
+def iter_objs(
+        vol: 'Volume',
+        lines: Iterable[str],
+) -> Generator[Union[Protoform, Reflex], None, None]:
+    subgroup = None
+    for line in lines:
+        if vol.parser.reconstruction_pattern.match(line):
+            yield Protoform.from_line(vol, line, subgroup=subgroup)
+            continue
+        if vol.parser.reflex_pattern.match(line):
+            yield Reflex.from_line(vol, line, subgroup=subgroup)
+            continue
+        if line.startswith('-'):
+            subgroup = line[1:].strip()
+            continue
+        raise ValueError(line)  # pragma: no cover
+
+
+@dataclasses.dataclass(eq=False)
+class FormGroup(DataReference):
+    """
+    Groups of (not necessarily cognate) forms. E.g. forms appended to an etymon as "cf." forms,
+    often loanwords, which are not to be confused with proper cognates.
+    """
+    forms: list = None
+    __table__ = 'cf.csv'
+
+    def subkey(self):
+        """
+        We assume that there are no two form groups starting with the same form in the same section.
+        SO adding information about the first form to the key should make it unique.
+        """
+        f = self.forms[0]
+        return (slug(getattr(f, 'group', '')), slug(f.lang), slug(f.forms[0]))
+
+    @classmethod
+    def from_block(cls, _: int, vol: 'Volume', block: Block) -> 'FormGroup':
+        """Instantiate an object from the lines of a block."""
+        forms = list(iter_objs(vol, block.lines))
+        assert forms, (vol.dir.number, block.lines)
+        return cls(
+            volume=str(vol.dir.number),
+            chapter=block.chapter,
+            section=block.section,
+            subsection=block.subsection,
+            page=block.pagenumber,
+            forms=forms,
         )
 
 
@@ -616,6 +648,10 @@ class Reconstruction(DataReference):
     def id(self):
         return '-'.join(str(s) for s in self.key())
 
+    @property
+    def computed_gloss(self) -> Optional[str]:
+        return None
+
     def __hash__(self):
         return hash(self.key())
 
@@ -628,22 +664,7 @@ class Reconstruction(DataReference):
     @classmethod
     def from_block(cls, _: int, vol: 'Volume', block: Block):
         forms, cfs = formblock(vol.parser, block.lines)
-
-        def iter_objs(lines: Iterable[str]) -> Generator[Union[Protoform, Reflex], None, None]:
-            subgroup = None
-            for line in lines:
-                if vol.parser.reconstruction_pattern.match(line):
-                    yield Protoform.from_line(vol, line, subgroup=subgroup)
-                    continue
-                if vol.parser.reflex_pattern.match(line):
-                    yield Reflex.from_line(vol, line, subgroup=subgroup)
-                    continue
-                if line.startswith('-'):
-                    subgroup = line[1:].strip()
-                    continue
-                raise ValueError(line)  # pragma: no cover
-
-        reflexes = list(iter_objs(forms))
+        reflexes = list(iter_objs(vol, forms))
         assert any(isinstance(ref, Protoform) for ref in reflexes)
 
         return cls(
@@ -653,28 +674,34 @@ class Reconstruction(DataReference):
             subsection=block.subsection,
             page=block.pagenumber,
             reflexes=reflexes,
-            cfs=[(cfspec, list(iter_objs(cf))) for cfspec, cf in cfs or []]
+            cfs=[(cfspec, list(iter_objs(vol, cf))) for cfspec, cf in cfs or []]
         )
 
 
 @dataclasses.dataclass
 class Chapter:
     text: str
-    toc: list
+    toc: list[TocItemType]
     bib: Source
     pages: list[int]
 
     @classmethod
-    def from_text(cls, vol, num, text, toc):
-        md = vol.metadata[num]
+    def from_text(cls, vol: 'Volume', num: str, text: str, toc: list[TocItemType]) -> 'Chapter':
+        """Initializze from volume and text."""
+        md = vol.dir.metadata[num]
         header = f"\n[{md.author}]{{.smallcaps}}\n\n<!--start-->\n"
         text = vol.replace_cross_refs(text, num)
         return cls(
-            polish_text(header + vol.replace_refs(text)), toc, md.bib(vol.bib), pages=md.pagelist)
+            polish_text(header + vol.replace_source_refs(text)),
+            toc,
+            md.bib(vol.dir.bib),
+            pages=md.pagelist)
 
-    def iter_sections(self):
+    def iter_sections(self) -> Generator[tuple[str, str], None, None]:
+        """Split chapter text into sections - using the inserted HTML anchors."""
         anchor = re.compile(r'<a id=\"(?P<sec>s-[0-9\-]+)\">')
-        sec, lines = None, []
+        sec = ''
+        lines: list[str] = []
 
         for line in self.text.split('\n'):
             m = anchor.match(line)
@@ -695,31 +722,28 @@ class Volume:
     The data of a volume is expected to be found in a directory, structured as described for
     `VolumeDir`.
     """
-    def __init__(
+    def __init__(  # pylint: disable=R0913,R0917
             self,
             parser: 'Parser',
             d: VolumeDir,
             langs: dict[LanguageIdType, collections.OrderedDict[str, Any]],
             sources: Sources,
-            reconstruction_cls: type = Reconstruction,
+            reconstruction_cls: Optional[type] = None,
     ):
         self.parser: 'Parser' = parser
         self.dir: VolumeDir = d
-
-        # We assume single-digit volume numbers, given as last character of the directory name.
-        # FIXME: don't put a facade on
-        self.metadata = self.dir.metadata
-        self.bib = self.dir.bib
-
         self.langs = langs
-
-        self._lines = None
         self.sources = sources
-        self.chapter_pages: dict[str, tuple[int, int]] = dict(self.dir.iter_chapter_pages())
-        self._reconstruction_cls = reconstruction_cls
+        self._reconstruction_cls = reconstruction_cls or Reconstruction
+        self._lines = None
+
+    @functools.cached_property
+    def chapter_pages(self) -> dict[str, tuple[int, int]]:
+        """Page ranges per chapter."""
+        return dict(self.dir.iter_chapter_pages())
 
     def __str__(self):  # pragma: no cover
-        return self.bib['title']
+        return self.dir.bib['title']
 
     def match_language(
             self,
@@ -731,13 +755,11 @@ class Volume:
             if s.startswith(lg):
                 assert group is None or (self.langs[lg]['Group'] == group), (group, lg, s)
                 return lg, self.langs[lg], s[len(lg):]
-        for k in self.parser.proto_graphemes.keys():
-            if s.startswith(k):
-                return k, None, s[len(k):]
         return None
 
     @functools.cached_property
     def chapters(self) -> collections.OrderedDict[Union[None, ChapterNumberType], Chapter]:
+        """Chapters of the volume keyed by number."""
         if not self._lines:
             assert self.reconstructions
         return collections.OrderedDict(
@@ -745,12 +767,12 @@ class Volume:
             for num, text, toc in iter_chapters(self._lines, self.dir))
 
     @functools.cached_property
-    def source_in_brackets_pattern_dict(self):
+    def source_in_brackets_pattern_dict(self) -> dict[str, re.Pattern[str]]:
         """Patterns to match references to sources."""
         return {src.id: refs.key_to_regex(src['key'], in_text=False) for src in self.sources}
 
     @functools.cached_property
-    def source_pattern_dict(self):
+    def source_pattern_dict(self) -> collections.OrderedDict[str, re.Pattern[str]]:
         """Patterns to match references to sources."""
         res = collections.OrderedDict()
         for src in sorted(self.sources, key=lambda src: -len(src['key'])):
@@ -758,12 +780,12 @@ class Volume:
         return res
 
     def match_ref(self, s) -> Optional[tuple[str, Optional[str]]]:
+        """Try to match a single source reference, possibly including page numbers."""
         if not s.startswith('('):
             s = f'({s})'
         pages = None
         if s.endswith(')'):
-            pages_pattern = re.compile(r':\s*(?P<pages>[0-9]+([,;-]\s*[0-9]+)*)\)')
-            m = pages_pattern.search(s)
+            m = re.search(r':\s*(?P<pages>[0-9]+([,;-]\s*[0-9]+)*)\)', s)
             if m:
                 pages = m.group('pages')
                 s = s[:m.start()] + ')'
@@ -774,29 +796,38 @@ class Volume:
         return None
 
     def replace_cross_refs(self, s, chapter):
+        """Replace references to sections, etc. with markdown links."""
         res = refs.replace_cross_refs(s, self.dir.number, chapter, self.chapter_pages)
         return refs.replace_figure_refs(res, self.dir.number)
 
-    def replace_refs(self, s):
+    def replace_source_refs(self, s: str) -> str:
+        """Replace references to sources with CLDF Markdown links."""
         return refs.replace_source_refs(s, self.source_pattern_dict)
 
     @functools.cached_property
     def reconstructions(self) -> list[Reconstruction]:
+        """Extracted reconstructions."""
         # This must be called as first object extractor!
         self._lines = self.dir.text_lines
         return list(self._iter_blocks(BLOCKS['etymon'], self._reconstruction_cls))
 
     @functools.cached_property
     def formgroups(self) -> list[FormGroup]:
+        """Extracted formgroups."""
         assert self.reconstructions, 'self._lines not initialized!'
         return list(self._iter_blocks(BLOCKS['formgroup'], FormGroup))
 
     @functools.cached_property
     def igts(self) -> list[ExampleGroup]:
+        """Extracted examples."""
         assert self.reconstructions, 'self._lines not initialized!'
         return list(self._iter_blocks(BLOCKS['igt'], ExampleGroup))
 
-    def _iter_blocks(self, block_spec: BlockParseSpec, cls: BlockObject):
+    def _iter_blocks(
+            self,
+            block_spec: BlockParseSpec,
+            cls: type[BlockObject],
+    ) -> Generator[BlockObject, None, None]:
         objids = set()
         n = 0
         generator = extract_blocks(block_spec, self._lines)

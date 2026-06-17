@@ -103,7 +103,7 @@ def test_ExampleGroup(volume1):
 )
 def test_Gloss(volume1, text, assertion, parser):
     from pyetymdict.parser.forms import iter_glosses
-    g = Gloss.from_dict(volume1, next(iter_glosses(text, parser.pos_pattern, parser.kinship_pattern)))
+    g = Gloss.from_dict(volume1, next(iter_glosses(text, parser.pos_pattern)))
     assert assertion(g), g
     assert isinstance(str(g), str)
 

@@ -6,38 +6,31 @@ import functools
 
 from .spec import (
     CROSS_REF_PATTERN, CROSS_REF_PATTERN_PAGES, CROSS_REF_PATTERN_NO_SECTION, FIGURE_REF_PATTERN,
+    CROSS_REF_PATTERN_MULTI_SECTIONS, VolumeDir,
 )
 from .util import cldf_source_link, cldf_contribution_link
 
 
-def key_to_regex(key, in_text=True):
+def key_to_regex(key: str, in_text: bool = True) -> re.Pattern[str]:
     """
     :param in_text: If `True`, we assume the author name(s) to be part of regular text and only the\
     year (possibly) in brackets.
     """
-    #
-    # FIXME: match "(after Blust ...)", "(from French-Wright ...)"!
-    # (Milke 1968: *paRaRa)
-    #
     comps = key.split()
     if len(comps) > 1:
         authors = r'\s+'.join(
             [re.escape(c) if c not in {'&', 'and'} else r'(and|&)' for c in comps[:-1]])
         year = comps[-1]
         if in_text:
-            return re.compile(r"{}(['’]s?)?(,\s*eds?,\s*)?\s*\(?{}".format(authors, year))
+            return re.compile(r"{}(['’]s?)?(,\s*eds?,\s*)?\s*\(?{}".format(  # pylint: disable=C0209
+                authors, year))
         return re.compile(
-            r"\(((?P<qualifier>after|from)\s+)?{}(['’]s)?(,\s*eds?,\s*)?"
-            r"\s*{}(\s*:\s*(?P<pages>[^,;)]+))?\)".format(authors, year))
+            r"\(((?P<qualifier>after|from)\s+)?{}(['’]s)?(,\s*eds?,\s*)?"  # pylint: disable=C0209
+            r"\s*{}(\s*:\s*(?P<pages>[^,;)]+))?\)".format(  # pylint: disable=C0209
+                authors, year))
     if in_text:
-        return re.compile(r"(?<=\s){}(?=\s|\.|,)".format(comps[0]))
-    return re.compile(r"\({}\)".format(comps[0]))
-
-
-def search(s, *keys, **kw):
-    for key in keys:
-        for m in key_to_regex(key, **kw).finditer(s):
-            yield key, m.string[m.start():m.end()], m.groupdict()
+        return re.compile(r"(?<=\s){}(?=\s|\.|,)".format(comps[0]))  # pylint: disable=C0209
+    return re.compile(r"\({}\)".format(comps[0]))  # pylint: disable=C0209
 
 
 def repl_ref(srcid: str, m: re.Match[str]) -> str:
@@ -73,8 +66,51 @@ def replace_cross_refs(
         chapter: str,
         chapter_pages: dict[str, tuple[int, int]],
 ) -> str:
+    """
+    Replace cross-references in text to other sections with Markdown links.
+
+    vol3:ch.11 (§§2.1, 2.4 and 3.5 respectively).
+    vol4:chapter 8, §§5 and 6). More restrictive expressions are often coined by adding a
+
+    """
+    def mrepl(m: re.Match[str]) -> str:
+        matched = m.string[m.start():m.end()]
+        chapterlabel = None
+        if m.group('volume'):
+            if not m.group('chapter'):  # A volume is referenced but no specific chapter.
+                return matched
+            cid = f"{m.group('volume')}-{m.group('chapter')}"
+            chapterlabel = f"Vol. {m.group('volume')}, ch. {m.group('chapter')}"
+        else:
+            if m.group('chapter'):
+                cid = f"{volume_number}-{m.group('chapter')}"
+                chapterlabel = f"Ch. {m.group('chapter')}"
+            else:
+                cid = f'{volume_number}-{chapter}'
+
+        f = [part.strip() for part in m.group('fromsection').split('.') if part.strip()]
+        t = [part.strip() for part in m.group('tosection').split('.') if part.strip()]
+        if len(t) < len(f):
+            t = f[:len(f)-len(t)] + t
+
+        if len(f) > 3:
+            return matched
+
+        res = ''
+        if chapterlabel:
+            res += cldf_contribution_link(cid, label=chapterlabel) + ' '
+
+        res += '§§{}-{}'.format(  # pylint: disable=C0209
+            cldf_contribution_link(cid, label='.'.join(f), anchor='-'.join(['s'] + f)),
+            cldf_contribution_link(cid, label='.'.join(t), anchor='-'.join(['s'] + t)),
+        )
+        if m.group('tosection').endswith('.'):
+            res += '.'
+        return res
+
+    res = CROSS_REF_PATTERN_MULTI_SECTIONS.sub(mrepl, text)
+
     def repl(m: re.Match[str]) -> str:
-        # FIXME: account for (§§10.8–9), where only "§10.8" is matched!
         matched = m.string[m.start():m.end()]
         if m.string[:m.start()].endswith('['):
             # We are already in a link!
@@ -99,14 +135,14 @@ def replace_cross_refs(
 
         return cldf_contribution_link(cid, label=matched, anchor=anchor)
 
-    res = CROSS_REF_PATTERN.sub(repl, text)
+    res = CROSS_REF_PATTERN.sub(repl, res)
     res = CROSS_REF_PATTERN_NO_SECTION.sub(repl, res)
 
     def prepl(m: re.Match[str]) -> str:
         page = int(m.group('page'))
         for cid, (s, e) in chapter_pages.items():
-            v, _, c = cid.partition('-')
-            if v == m.group('volume') and page >= s and page <= e:
+            v, _, _ = cid.partition('-')
+            if v == m.group('volume') and s <= page <= e:
                 break
         else:
             return m.string[m.start():m.end()]
@@ -120,23 +156,25 @@ def replace_cross_refs(
 
 
 def replace_figure_refs(text: str, volume_number: str) -> str:
+    """
+    Replaces references to figures, maps or tables in text with proper Markdown links.
+    """
     def repl(m: re.Match[str]) -> str:
         label = m.string[m.start():m.end()]
         if m.string[:m.start()].strip()[-1] in {':', '_'}:
             return label
         if m.string[m.end():].strip().startswith(':'):
             return label
-        if m.group('type') in {'Figure', 'Map'}:
-            a = f"{m.group('type').lower()[:3]}-{volume_number}-{m.group('num').replace('.', '_')}"
-            return f'[{label}](#{a})'
-        if m.group('type') == 'Table':
-            return f"[{label}](#table-{m.group('num')})"
-        raise ValueError(m.group('type'))  # pragma: no cover
+        a = VolumeDir.figure_id(volume_number, m.group('type'), m.group('num'))
+        return f'[{label}](#{a})'
 
     return FIGURE_REF_PATTERN.sub(repl, text)
 
 
 def replace_source_refs(text: str, source_pattern_dict: dict[str, re.Pattern[str]]):
+    """
+    Replaces source references in text with proper CLDF Markdown links.
+    """
     # First step: Replace proper author-year style refs.
     for srcid, pattern in source_pattern_dict.items():
         text = pattern.sub(functools.partial(repl_ref, srcid), text)
@@ -144,7 +182,7 @@ def replace_source_refs(text: str, source_pattern_dict: dict[str, re.Pattern[str
     # Second step: Look for trailing years after identified source refs to handle cases like
     # "Meier 1998, 2009".
     sep = r',\s*|\s+and\s+'  # We look for comma or " and " separated years.
-    m = re.compile(r"\(Source#cldf:([^\)]+)\)(({})[0-9]+([\-–][0-9]+)?[a-z]?)+".format(sep))
+    m = re.compile(r"\(Source#cldf:([^)]+)\)((" + sep + r")[0-9]+([\-–][0-9]+)?[a-z]?)+")
 
     def repl(m):
         link, *years = [s.strip() for s in re.split(sep, m.string[m.start():m.end()])]

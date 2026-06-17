@@ -1,6 +1,5 @@
 import pytest
 
-from pyetymdict.parser.models import VolumeDir
 from pyetymdict.parser.lines import *
 
 
@@ -11,16 +10,71 @@ def volume_dir(tmp_path):
     return VolumeDir(d)
 
 
+def test_extract_blocks():
+    spec = BlockParseSpec('b', '<--', '-->')
+
+    generator = extract_blocks(spec, """
+1. Chap
+1.1 Sec
+1.1.1 Subsec
+
+<--
+stuff
+-->
+
+1.2 Sec
+<--
+stuff
+-->
+""".split('\n'))
+    b = next(generator)
+    assert 'stuff' in b.lines
+    assert b.subsection
+    n = 1
+    try:
+        while True:
+            b = generator.send(f'obj{n}')
+            assert not b.subsection
+            n += 1
+    except StopIteration as e:
+        lines = e.value
+    assert 'obj2' in lines
+
+
+def test_extract_blocks_no_end():
+    spec = BlockParseSpec('b', '--')
+
+    generator = extract_blocks(spec, """
+text
+--
+stuff
+
+more text
+--
+stuff
+
+""".split('\n'))
+    next(generator)
+    n = 1
+    try:
+        while True:
+            generator.send(f'obj{n}')
+            n += 1
+    except StopIteration as e:
+        pass
+    assert n == 2
+
+
 @pytest.mark.parametrize(
     'i,o',
     [
         (['First  ', '  Second'], lambda s: s == 'First Second'),
-        (['Figure 1: Cap'], lambda s: 'fig-1-1' in s and 'Cap]' in s),
+        ([':Figure 1: Cap'], lambda s: 'fig-1-1' in s and 'Cap]' in s),
     ]
 )
 def test_make_paragraph(i, o, volume_dir):
-    volume_dir.path.joinpath('maps').mkdir(parents=True)
-    volume_dir.path.joinpath('maps', 'fig_1.png').write_text('t')
+    volume_dir.path.joinpath('media').mkdir(parents=True)
+    volume_dir.path.joinpath('media', 'fig_1.png').write_text('t')
     assert o(make_paragraph(i, volume_dir))
 
 
@@ -92,4 +146,4 @@ item
     assert '- x\n- y' in text, '__ul__ not handled properly'
     assert '> First quote' in text
     assert '> Second quote' in text
-    assert 'table-1' in text, 'Table caption not recognized'
+    assert 'tab-1' in text, 'Table caption not recognized'

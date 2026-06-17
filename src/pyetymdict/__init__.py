@@ -1,5 +1,22 @@
 """
 Functionality related to the to-be-standardized EtymDict module.
+
+The ability to robustly parse dictionary data from plaintext files (implemented in the
+`pyetymdict.parser` package) relies on "controlled" data for core entities being supplied in a
+structured format. In accordance with the philosophy of `cldfbench`, this data is expected in a
+dataset's etc/ directory, namely:
+
+etc/
+- citation.bib - a BibTeX file containing a single entry with the bibliographical data of the whole
+  (possibly multi-volume) EtymDict. This entry should be of type "book" and will be used as template
+  for the citations of volumes.
+- languages.csv
+- sources.bib - a BibTeX file providing a consolidated bibliography across all volumes of an
+  EtymDict
+- gbif_taxa.csv - an optional CSV file listing biological taxa which are referenced in the EtymDict.
+
+
+See parser/__init__.py
 """
 from .tree import reconstruction_tree
 from .dataset import Dataset, Form, Language
