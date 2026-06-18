@@ -14,7 +14,7 @@ from pycldf.ext.markdown import CLDFMarkdownLink
 from clldutils import jsonlib
 
 from . import kinship
-from .util import re_choice
+from ..util import re_choice
 from ..languoids import Languoids
 
 ParagraphType = Sequence[str]  # A list of non-empty lines.
@@ -356,7 +356,7 @@ class Parser:  # pylint: disable=R0903,R0902
 
         self.graphemes: dict[str, Container[str]] = {
             name: languoids.grapheme_tokens(name) for name in languoids.by_name}
-        self.languoids: dict[LanguageIdType, dict[str, Any]] = languoids.by_name
+        self.languoids: Languoids = languoids
         self.reflex_pattern: re.Pattern[str] = reflex_pattern(languoids.reflex_groups)
         self.pos_pattern: re.Pattern[str] = pos_pattern(pos_map)
         self.pos_map = pos_map

@@ -1,57 +1,66 @@
-import string
+import shutil
 import logging
 import pathlib
 import argparse
+import dataclasses
 
 import pytest
-from csvw.dsv import reader
 from pycldf.sources import Source, Sources
+from cldfbench.catalogs import CLTS
 
-from pyetymdict import Dataset
+from pyetymdict import Dataset, Language
 from pyetymdict.languoids import Languoids
+from pyetymdict.forms import Forms
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def testsdir():
     return pathlib.Path(__file__).parent
 
 
-@pytest.fixture
-def ds(tmp_path):
-    class DS(Dataset):
-        id = 'test'
-        dir = tmp_path
-
-        def cmd_makecldf(self, args):
-            self.schema(args.writer.cldf, with_cf=False, with_contributions=False)
-            args.writer.cldf.add_sources('@misc{key,\ntitle={t}}')
-            args.writer.objects['LanguageTable'].append(dict(ID='r', Name='root', Is_Proto=True))
-            args.writer.objects['LanguageTable'].append(dict(ID='l1', Name='language1', Group='Adm', Is_Proto=False))
-            args.writer.objects['LanguageTable'].append(dict(ID='l2', Name='language2', Group='NNG', Is_Proto=False))
-            self.add_tree(args.writer, '(l2,l1)root', names={'root': 'r', 'l1': 'l1', 'l2': 'l2'})
-            args.writer.objects['ParameterTable'].append(dict(ID='p1'))
-            args.writer.objects['FormTable'].append(
-                dict(ID='1', Value='f1', Form='f1', Language_ID='l1', Parameter_ID='p1'))
-            args.writer.objects['FormTable'].append(
-                dict(ID='2', Value='r1', Form='r1', Language_ID='r', Parameter_ID='p1'))
-            args.writer.objects['CognateTable'].append(dict(ID='1', Form_ID='1', Cognateset_ID='1', Source=['key']))
-            args.writer.objects['CognateTable'].append(dict(ID='2', Form_ID='2', Cognateset_ID='1'))
-            args.writer.objects['CognatesetTable'].append(dict(
-                ID='1',
-                Comment='See also [language1](LanguageTable#cldf:l1) _form_ ([x](Source#cldf:y))',
-                Form_ID='2'))
-
-    ds = DS()
-    ds._cmd_makecldf(argparse.Namespace(
-        dev=True,
-        verbose=False,
-        log=logging.getLogger(__name__)))
-    return ds
+@pytest.fixture(scope='session')
+def CLTS_api(testsdir):
+    return CLTS(testsdir / 'clts')
 
 
 @pytest.fixture(scope='session')
 def repos():
     return pathlib.Path(__file__).parent / 'repos'
+
+
+@pytest.fixture(scope='session')
+def ds(tmpdir_factory, repos, CLTS_api):
+    tmp = pathlib.Path(tmpdir_factory.mktemp('repos')) / 'repos'
+    shutil.copytree(repos, tmp)
+
+    @dataclasses.dataclass
+    class L(Language):
+        custom: str = None
+
+    class DS(Dataset):
+        id = 'test'
+        dir = tmp
+        language_class = L
+
+        def cmd_makecldf(self, args):
+            self.schema(args.writer.cldf, with_borrowings=False)
+
+            args.writer.cldf.sources = self.sources
+            reconstructions, fgs, egs = self.parse_chapters(args.writer)
+            self.languoids.add(args.writer, {}, {})
+            formtable = Forms(args.writer, self.languoids, self.taxa)
+            formtable.add_reconstructions(reconstructions)
+            formtable.add_formgroups(fgs)
+            formtable.add_examplegroups(egs)
+            self.add_tree(args.writer, '((lang,lang2)pmp)poc;')
+
+    ds = DS()
+    ds._cmd_makecldf(argparse.Namespace(
+        dev=True,
+        verbose=False,
+        clts=CLTS_api,
+        log=logging.getLogger(__name__)))
+    return ds
 
 
 @pytest.fixture(scope='session')
@@ -77,4 +86,4 @@ def volume1(parser, repos):
     from pyetymdict.parser.models import Volume
 
     sources = Sources.from_file(repos / 'etc' / 'sources.bib')
-    return Volume(parser, parser.volumes[0], parser.languoids, sources)
+    return Volume(parser, parser.volumes[0], sources)

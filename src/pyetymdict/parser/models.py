@@ -191,8 +191,8 @@ class Example:
                 lang, ldata, header = vol.match_language(header)
             except:  # pragma: no cover  # noqa E722
                 raise ValueError(header)
-            m = re.fullmatch(r'\s*\((?P<group>[A-Za-z]+)(,[^)]+)?\)\s*', header)
-            assert m and m.group('group') == ldata['Group'], lines
+            m = re.fullmatch(r'\s*\((?P<group>' + vol.parser.languoids.reflex_group_regex + r')(,[^)]+)?\)\s*', header)
+            assert m and m.group('group') == ldata['Group'], (header, ldata['Group'])
 
         igt = IGT(phrase=analyzed, gloss=gloss)
         if igt.conformance != LGRConformance.MORPHEME_ALIGNED:
@@ -300,17 +300,18 @@ class ExampleGroup(DataReference):
                 # A proto language!
                 assert (not header.strip()) or header.strip().startswith(':')
             if ldata and ldata['Group']:
-                m = re.match(r'\s*\((?P<group>[A-Za-z]+)\)', header)
+                m = re.match(r'\s*\((?P<group>' + vol.parser.languoids.reflex_group_regex + r')\)', header)
                 assert m, (vol.dir.number, lang, ldata, lines[0])
                 assert m.group('group') == ldata['Group']
                 header = header[m.end():].strip()
 
             header = header.lstrip(': ')
             if header:
-                try:
-                    srcid, pages = vol.match_ref(header)
+                res = vol.match_ref(header)
+                if res:
+                    srcid, pages = res
                     ref = Reference(srcid, header.lstrip('(').rstrip(')'), pages)
-                except TypeError:
+                else:
                     context = header
 
             assert len(examples) % 3 == 0 or len(examples) == 4, (vol.dir.number, lines)
@@ -354,6 +355,7 @@ def comment_or_sources(vol: 'Volume', cmt: str) -> tuple[Optional[str], Optional
 class Gloss:
     gloss: Optional[str]
     morpheme_gloss: Optional[str] = None
+    kinship_gloss: Optional[str] = None
     comment: Optional[str] = None
     sources: list[Reference] = dataclasses.field(default_factory=list)
     number: Optional[str] = None
@@ -373,7 +375,7 @@ class Gloss:
         return self.key() == other.key()
 
     @classmethod
-    def from_dict(cls, vol, d: RawGloss):
+    def from_rawgloss(cls, vol, d: RawGloss):
         if d.comments:
             cmts = []
             for cmt in d.comments:
@@ -390,6 +392,7 @@ class Gloss:
             gloss=d.gloss,
             comment="; ".join(d.comments or []),
             morpheme_gloss=d.morpheme_gloss,
+            kinship_gloss=d.kinship_gloss,
             species=d.species,
             qualifier=d.qualifier,
             doubt=d.uncertain,
@@ -404,6 +407,7 @@ class Form:
     subgroup: str = None
     footnote_number: str = None
     morpheme_gloss: str = None
+    kinship_gloss: str = None
 
 
 @dataclasses.dataclass
@@ -488,7 +492,7 @@ class Protoform(Form):
                 if i == 0 and pos:
                     assert not g.pos, line
                     g.pos = pos
-                kw['glosses'].append(Gloss.from_dict(vol, g))
+                kw['glosses'].append(Gloss.from_rawgloss(vol, g))
 
         for g in kw['glosses']:
             if g.fn:
@@ -558,7 +562,7 @@ class Reflex(Form):
         fn = lfn or ffn
         assert lang, line
         glosses = [
-            Gloss.from_dict(vol, g)
+            Gloss.from_rawgloss(vol, g)
             for g in iter_glosses(rem, vol.parser.pos_pattern)]
         for g in glosses:
             if g.fn:
@@ -572,6 +576,7 @@ class Reflex(Form):
             glosses=glosses,
             footnote_number=fn,
             morpheme_gloss=glosses[0].morpheme_gloss if glosses else None,
+            kinship_gloss=glosses[0].kinship_gloss if glosses else None,
             subgroup=subgroup,
         )
 
@@ -726,13 +731,11 @@ class Volume:
             self,
             parser: 'Parser',
             d: VolumeDir,
-            langs: dict[LanguageIdType, collections.OrderedDict[str, Any]],
             sources: Sources,
             reconstruction_cls: Optional[type] = None,
     ):
         self.parser: 'Parser' = parser
         self.dir: VolumeDir = d
-        self.langs = langs
         self.sources = sources
         self._reconstruction_cls = reconstruction_cls or Reconstruction
         self._lines = None
@@ -751,10 +754,10 @@ class Volume:
             group: Optional[str] = None,
     ) -> Optional[tuple[LanguageIdType, Optional[collections.OrderedDict[str, Any]], str]]:
         """Check if the start of `s` matches a known language in the Volume."""
-        for lg in sorted(self.langs, key=lambda ll: -len(ll)):
+        for lg in sorted(self.parser.languoids.by_name, key=lambda ll: -len(ll)):
             if s.startswith(lg):
-                assert group is None or (self.langs[lg]['Group'] == group), (group, lg, s)
-                return lg, self.langs[lg], s[len(lg):]
+                assert group is None or (self.parser.languoids.by_name[lg]['Group'] == group), (group, lg, s)
+                return lg, self.parser.languoids.by_name[lg], s[len(lg):]
         return None
 
     @functools.cached_property

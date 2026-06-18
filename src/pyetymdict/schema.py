@@ -9,10 +9,9 @@ def schema(
         cldf: pycldf.Dataset,
         with_cf: bool = True,
         with_borrowings: bool = True,
-        with_contributions: bool = True,
-        taxa: Optional[Taxa] = None,
 ):
     """Add the EtymDict-specific schema."""
+    cldf.add_component('TreeTable')
     # Etyma, aka cognate sets or reconstructions:
     cldf.add_component(
         'CognatesetTable',
@@ -45,23 +44,19 @@ def schema(
             'name': 'Conforms_To',
             'propertyUrl': 'http://purl.org/dc/terms/conformsTo'},
     )
-    if with_contributions:
-        if 'ContributionTable' not in cldf:
-            cldf.add_component('ContributionTable')
-        cldf.add_columns(
-            'ContributionTable',
-            {'name': 'Volume_Number', 'datatype': 'integer'},
-            'Volume',
-            {'name': 'Table_Of_Contents', 'datatype': 'json'},
-            {
-                'name': 'Source',
-                'separator': ';',
-                'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#source'},
-            {'name': 'Source_To_Sections', 'datatype': 'json'},
-        )
-    if taxa:
-        cldf.add_table('taxa.csv', *taxa.columns)
-
+    if 'ContributionTable' not in cldf:
+        cldf.add_component('ContributionTable')
+    cldf.add_columns(
+        'ContributionTable',
+        {'name': 'Volume_Number', 'datatype': 'integer'},
+        'Volume',
+        {'name': 'Table_Of_Contents', 'datatype': 'json'},
+        {
+            'name': 'Source',
+            'separator': ';',
+            'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#source'},
+        {'name': 'Source_To_Sections', 'datatype': 'json'},
+    )
     if not with_cf:
         return  # pragma: no cover
 

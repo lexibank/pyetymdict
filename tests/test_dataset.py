@@ -21,4 +21,4 @@ def test_dataset_makecldf(ds):
         break
     else:
         raise AssertionError()  # pragma: no cover
-    assert {n.name for n in tree.newick().walk()} == {'r', 'l1', 'l2'}
+    assert {n.name for n in tree.newick().walk()} == {'lang', 'lang2', 'pmp', 'poc'}

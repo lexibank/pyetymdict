@@ -36,11 +36,6 @@ def markdown_escape(s: str) -> str:
     return s
 
 
-def re_choice(items: Iterable[str]) -> str:
-    """Turn items into a list of alternatives suitable for a regex pattern."""
-    return r'|'.join(re.escape(i) for i in sorted(items, key=lambda ii: (-len(ii), ii)))
-
-
 def strip_morphemeseparator(f: str) -> str:
     """Remove morpheme separators from start or end of string."""
     if f.startswith('-'):

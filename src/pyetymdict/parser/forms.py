@@ -199,6 +199,7 @@ class RawGloss:  # pylint: disable=R0902
     """
     gloss: Optional[str] = None
     morpheme_gloss: Optional[str] = None
+    kinship_gloss: Optional[str] = None
     pos: Optional[str] = None
     species: Optional[str] = None
     fn: Optional[str] = None
@@ -279,7 +280,7 @@ class RawGloss:  # pylint: disable=R0902
 
         m = kinship.search(rem)
         if m:
-            self.morpheme_gloss = ' '.join(
+            self.kinship_gloss = ' '.join(
                 s.strip() for s in m.string[m.start() + 1:m.end()].split(',') if s.strip())
             rem = rem[:m.start() + 1] + rem[m.end():]
         return rem

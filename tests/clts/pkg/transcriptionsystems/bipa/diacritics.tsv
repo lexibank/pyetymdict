@@ -1,0 +1,107 @@
+GRAPHEME	TYPE	FEATURE	VALUE	ALIAS	TYPOGRAPHY	NOTE
+◌͈	consonant	articulation	strong			
+◌ʰ	consonant	aspiration	aspirated			
+◌ʱ	consonant	breathiness	breathy			
+◌̤	consonant	breathiness	breathy	+		
+◌̰	consonant	creakiness	creaky			
+◌ː	consonant	duration	long			
+◌ˑ	consonant	duration	mid-long			
+◌'	consonant	ejection	ejective	+		
+◌’	consonant	ejection	ejective			
+◌ʼ	consonant	ejection	ejective	+		
+◌ˀ	consonant	glottalization	glottalized			
+◌ʷ	consonant	labialization	labialized			
+◌̺	consonant	laminality	apical			
+◌̻	consonant	laminality	laminal			
+◌̃	consonant	nasalization	nasalized			
+◌ᶣ	consonant	palatalization	labio-palatalized			
+◌ʲ	consonant	palatalization	palatalized			
+◌ˤ	consonant	pharyngealization	pharyngealized			
+ʰ◌	consonant	preceding	pre-aspirated			
+ˀ◌	consonant	preceding	pre-glottalized			
+ʷ◌	consonant	preceding	pre-labialized			
+ᶰ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᶬ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᶮ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᶯ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᵐ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᴺ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᴹ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ᵑ◌	consonant	preceding	pre-nasalized	+		We treat these sounds as a marker of pre-nasalization, so they are all an alias of ⁿ.
+ⁿ◌	consonant	preceding	pre-nasalized			
+ʲ◌	consonant	preceding	pre-palatalized			
+◌̈	consonant	relative_articulation	centralized			
+◌̽	consonant	relative_articulation	mid-centralized			
+◌̟	consonant	relative_articulation	advanced			
+◌̠	consonant	relative_articulation	retracted			
+◌͉	consonant	release	unreleased	+		
+◌̚	consonant	release	unreleased			
+◌ˡ	consonant	release	with-lateral-release			
+◌ᵊ	consonant	release	with-mid-central-vowel-release			
+◌ⁿ	consonant	release	with-nasal-release			
+◌ᶰ	consonant	release	with-nasal-release	+		
+◌ᶬ	consonant	release	with-nasal-release	+		
+◌ᶮ	consonant	release	with-nasal-release	+		
+◌ᶯ	consonant	release	with-nasal-release	+		
+◌ᵐ	consonant	release	with-nasal-release	+		
+◌ᴺ	consonant	release	with-nasal-release	+		
+◌ᵑ	consonant	release	with-nasal-release	+		
+◌ᴹ	consonant	release	with-nasal-release	+		
+ˈ◌	consonant	stress	primary-stress			
+'◌	consonant	stress	primary-stress	+		
+ˌ◌	consonant	stress	secondary-stress			
+,◌	consonant	stress	secondary-stress	+		
+◌̞	consonant	raising	lowered			
+◌̝	consonant	raising	raised			
+	consonant	syllabicity	syllabic		up	
+◌̩	consonant	syllabicity	syllabic			
+◌ˠ	consonant	velarization	velarized			
+◌˳	consonant	voicing	devoiced	+		
+◌̥	consonant	voicing	devoiced			
+◌̊	consonant	voicing	devoiced	+	up	
+◌̊	consonant	voicing	devoiced	+	up	
+◌̬	consonant	voicing	revoiced			
+◌͈	vowel	articulation	strong			
+◌ʱ	vowel	breathiness	breathy	+		
+◌̤	vowel	breathiness	breathy			
+◌̈	vowel	relative_articulation	centralized			
+◌̽	vowel	relative_articulation	mid-centralized			
+◌̟	vowel	relative_articulation	advanced			
+◌̠	vowel	relative_articulation	retracted			
+◌̰	vowel	creakiness	creaky			
+◌̄	vowel	duration	long	+		
+◌̄	vowel	duration	long	+		
+◌ː	vowel	duration	long			
+◌ˑ	vowel	duration	mid-long			
+◌̆	vowel	duration	ultra-short			
+◌ˀ	vowel	glottalization	glottalized			
+◌̃	vowel	nasalization	nasalized			
+◌ˤ	vowel	pharyngealization	pharyngealized			
+◌̞	vowel	raising	lowered			
+◌̝	vowel	raising	raised			
+◌˞	vowel	rhotacization	rhotacized			
+◌̜	vowel	rounding	less-rounded			
+◌̹	vowel	rounding	more-rounded			
+ˈ◌	vowel	stress	primary-stress			
+'◌	vowel	stress	primary-stress	+		
+ˌ◌	vowel	stress	secondary-stress			
+,◌	vowel	stress	secondary-stress	+		
+◌̑	vowel	syllabicity	non-syllabic		up	
+◌̯	vowel	syllabicity	non-syllabic			
+◌↓	vowel	tone	with-downstep
+◌̏	vowel	tone	with-extra_low_tone
+◌̋	vowel	tone	with-extra_high_tone
+◌̂	vowel	tone	with-falling_tone
+◌↘	vowel	tone	with-global_fall
+◌↗	vowel	tone	with-global_rise
+◌́	vowel	tone	with-high_tone
+◌̀	vowel	tone	with-low_tone
+◌̄	vowel	tone	with-mid_tone
+◌̌	vowel	tone	with-rising_tone
+◌↑	vowel	tone	with-upstep
+◌̘	vowel	tongue_root	advanced-tongue-root			
+◌̙	vowel	tongue_root	retracted-tongue-root			
+◌ˠ	vowel	velarization	velarized			
+◌̊	vowel	voicing	devoiced	+	up	
+◌˳	vowel	voicing	devoiced	+		
+◌̥	vowel	voicing	devoiced			

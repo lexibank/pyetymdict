@@ -1,5 +1,5 @@
-ID,Name,Group
-lang,Language,Adm
-lang2,Bebeli,NNG
-pmp,PMP,
-poc,POc,
+ID,Name,Group,Glottocode,Latitude,Longitude,Alternative_Names,custom
+lang,Language,Adm,,,,,a
+lang2,Bebeli,NNG,,,,,b
+pmp,PMP,,,,,Proto MP,c
+poc,POc,,,,,Proto OC,d

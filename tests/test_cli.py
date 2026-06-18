@@ -23,31 +23,31 @@ def test_set(ds, tmp_path, capsys):
         format='simple',
         db=None))
     out, _ = capsys.readouterr()
-    assert 'root *r1' in out
+    assert 'POc *mata' in out
 
     setcommand.run(argparse.Namespace(
-        set='1',
+        set='1-1-1-1-None-poc-mata-a',
         dataset=str(ds.cldf_dir),
         download_dir='',
         language_property=None,
         format='simple',
         db=None))
     out, _ = capsys.readouterr()
-    assert 'root *r1' in out
+    assert 'POc *mata' in out
 
 
 def test_set_from_db(ds, tmp_path, capsys):
     db = Database(ds.cldf_reader(), fname=tmp_path / 'db.sqlite')
     db.write_from_tg()
     setcommand.run(argparse.Namespace(
-        set='1',
+        set='1-1-1-1-None-poc-mata-a',
         dataset=str(ds.cldf_dir),
         download_dir='',
         language_property=None,
         format='simple',
         db=str(tmp_path / 'db.sqlite'),))
     out, _ = capsys.readouterr()
-    assert 'root *r1' in out
+    assert 'POc *mata' in out
 
     setcommand.run(argparse.Namespace(
         set=None,
@@ -57,4 +57,4 @@ def test_set_from_db(ds, tmp_path, capsys):
         format='simple',
         db=str(tmp_path / 'db.sqlite'),))
     out, _ = capsys.readouterr()
-    assert 'root *r1' in out
+    assert 'POc *mata' in out

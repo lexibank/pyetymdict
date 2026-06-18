@@ -1,6 +1,15 @@
 """
 Functionality related to the to-be-standardized EtymDict module.
 
+This package supports a plaintext authoring format for etymological information - basically
+commented etyma, i.e. reconstructions followed by lists of reflexes. Modeled on
+"The lexicon of Proto-Oceanic", it supports such information encoded as multi-volume work with
+the plaintext (and some supporting) data in
+
+raw/
+- vol[0-9]/
+  - text.txt
+
 The ability to robustly parse dictionary data from plaintext files (implemented in the
 `pyetymdict.parser` package) relies on "controlled" data for core entities being supplied in a
 structured format. In accordance with the philosophy of `cldfbench`, this data is expected in a
@@ -14,6 +23,8 @@ etc/
 - sources.bib - a BibTeX file providing a consolidated bibliography across all volumes of an
   EtymDict
 - gbif_taxa.csv - an optional CSV file listing biological taxa which are referenced in the EtymDict.
+- orthography.tsv - a default orthography profile
+- orthography/<lid>.tsv - language-specific orthography profiles (optional)
 
 
 See parser/__init__.py

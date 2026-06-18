@@ -59,29 +59,40 @@ def test_comment_or_sources(volume1):
     assert not srcs
 
 
-def test_ExampleGroup(volume1):
-    _ = ExampleGroup.from_block(
-        1,
-        volume1,
-        Block(type='igt', chapter=(1, 'C'), section=(1, 'S'), subsection=(1, 'SS'), lines="""\
-    (1) Language (Adm): (Author 2000:204, 231)
-    a. Au   rabe.
-       s:1s kick
-       'I'm kicking.'
-    b. Au    rabe-t-a     a   polo.
-       s:1s  kick-TR-O:3s ART ball
-       'I'm kicking the ball.'\
-""".split('\n')))
-    _ = ExampleGroup.from_block(
-        1,
-        volume1,
-        Block(type='igt', chapter=(1, 'C'), section=(1, 'S'), pagenumber=10, lines="""\
+@pytest.mark.parametrize(
+    'text,kw',
+    [
+        ("""\
+(1) Language (Adm): (Author 2000:204, 231)
+a. Au   rabe.
+   s:1s kick
+   'I'm kicking.'
+b. Au    rabe-t-a     a   polo.
+   s:1s  kick-TR-O:3s ART ball
+   'I'm kicking the ball.'\
+""", dict(subsection=(1, 'SS'))),
+        ("""\
+(1) Language (Adm): Context
+a. Au   rabe.
+   s:1s kick
+   'I'm kicking.'
+b. Au    rabe-t-a     a   polo.
+   s:1s  kick-TR-O:3s ART ball
+   'I'm kicking the ball.'\
+""", dict(subsection=(1, 'SS'))),
+        ("""\
 1) a. Language (Adm)
        Au   rabe.
        s:1s kick
        'I'm kicking.'\
-""".split('\n')))
-
+""", dict(pagenumber=10)),
+    ]
+)
+def test_ExampleGroup(text, kw, volume1):
+    _ = ExampleGroup.from_block(
+        1,
+        volume1,
+        Block(type='igt', chapter=(1, 'C'), section=(1, 'S'), lines=text.split('\n'), **kw))
 
 
 @pytest.mark.parametrize(
@@ -98,23 +109,23 @@ def test_ExampleGroup(volume1):
         ("? 'the gloss'", lambda g: g.doubt),
         ("[Not_a_morpheme_gloss]", lambda g: g.morpheme_gloss == 'Not_a_morpheme_gloss'),
         # Yet another use for morpheme glosses: Kinship term coding.
-        ("‘the gloss’, PZ", lambda g: g.morpheme_gloss == 'PZ'),
+        ("‘the gloss’, PZ", lambda g: g.kinship_gloss == 'PZ'),
     ]
 )
 def test_Gloss(volume1, text, assertion, parser):
     from pyetymdict.parser.forms import iter_glosses
-    g = Gloss.from_dict(volume1, next(iter_glosses(text, parser.pos_pattern)))
+    g = Gloss.from_rawgloss(volume1, next(iter_glosses(text, parser.pos_pattern)))
     assert assertion(g), g
     assert isinstance(str(g), str)
 
 
 def test_Gloss_cmp(volume1, parser):
     from pyetymdict.parser.forms import iter_glosses
-    g1 = Gloss.from_dict(volume1, next(iter_glosses("(V) 'gloss'", parser.pos_pattern)))
-    g2 = Gloss.from_dict(volume1, next(iter_glosses("(V) 'gloss'", parser.pos_pattern)))
+    g1 = Gloss.from_rawgloss(volume1, next(iter_glosses("(V) 'gloss'", parser.pos_pattern)))
+    g2 = Gloss.from_rawgloss(volume1, next(iter_glosses("(V) 'gloss'", parser.pos_pattern)))
     assert g2 in {g1: '1'}
     assert g1 == g2
-    g3 = Gloss.from_dict(volume1, next(iter_glosses("(VT) 'gloss'", parser.pos_pattern)))
+    g3 = Gloss.from_rawgloss(volume1, next(iter_glosses("(VT) 'gloss'", parser.pos_pattern)))
     assert g3 != g2
 
 
@@ -214,7 +225,7 @@ PMP *mata 'eye'
 
 def test_Volume(volume1):
     assert len(volume1.chapters) == 1
-    assert len(volume1.reconstructions) == 3
+    assert len(volume1.reconstructions) == 4
     assert len(volume1.igts) == 2
     assert len(volume1.formgroups) == 2
     assert len(list(list(volume1.chapters.values())[0].iter_sections())) == 3

@@ -24,7 +24,7 @@ __igt__
 POc *mata 'eye'
  Adm: Language word
 cf. also:
- Adm: Language other 'gloss'
+ Adm: Language other 'Conus alternative'
 cf. also: Loans
  Adm: Language other 'gloss'
 >
@@ -57,5 +57,13 @@ __formgroup__
 
 __formgroup__
  Adm: Language words
+
+<
+POc *pata 'eye'[1]
+-Subgroup
+ Adm: Language words
+>
+
+[1] Footnote
 
 The end

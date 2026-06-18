@@ -36,15 +36,14 @@ class Taxa:
         return cls(rows, names)
 
     def match(self, text):
-        res = []
-        for k, v in self.names.items():
-            if k in text:
-                res.append(v)
-        return res
+        if not text:
+            return []
+        return [v for k, v in self.names.items() if k in text]
 
-    @property
-    def columns(self):
-        return [
+    @staticmethod
+    def schema(cldf):
+        cldf.add_table(
+            'taxa.csv',
             {'name': 'ID', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
             {'name': 'GBIF_ID', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#gbifReference'},
             {'name': 'name', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#name'},
@@ -60,11 +59,11 @@ class Taxa:
             {'name': 'family_eng'},
             {'name': 'synonyms', 'separator': '; '},
             {'name': 'sections', 'datatype': 'json'},
-        ]
+        )
 
-    def iter_rows(self, taxon2sections):
+    def add(self, writer, taxon2sections):
         for row in self.taxa:
             row['GBIF_ID'] = row['ID']
             row['synonyms'] = util.split(row.get('synonyms'))
             row['sections'] = taxon2sections.get(row['ID'], [])
-            yield row
+            writer.objects['taxa.csv'].append(row)
