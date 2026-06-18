@@ -4,7 +4,6 @@ The specification of the plain text format understood by `pyetymdict`.
 import re
 import pathlib
 import functools
-import collections
 from collections.abc import Sequence, Generator, Container, Iterable
 import dataclasses
 from typing import Literal, Optional, Any, get_args

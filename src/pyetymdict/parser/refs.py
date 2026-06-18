@@ -91,7 +91,7 @@ def replace_cross_refs(
         f = [part.strip() for part in m.group('fromsection').split('.') if part.strip()]
         t = [part.strip() for part in m.group('tosection').split('.') if part.strip()]
         if len(t) < len(f):
-            t = f[:len(f)-len(t)] + t
+            t = f[:len(f) - len(t)] + t
 
         if len(f) > 3:
             return matched

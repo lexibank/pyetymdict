@@ -112,6 +112,10 @@ class DataReference:
         return cldf_markdown_link(self.__table__, self.id, label=self.cldf_markdown_link_label())
 
 
+def _group_regex(vol):
+    return r'(?P<group>' + vol.parser.languoids.reflex_group_regex + r')'
+
+
 @dataclasses.dataclass
 class Example:
     id: str = None
@@ -191,7 +195,7 @@ class Example:
                 lang, ldata, header = vol.match_language(header)
             except:  # pragma: no cover  # noqa E722
                 raise ValueError(header)
-            m = re.fullmatch(r'\s*\((?P<group>' + vol.parser.languoids.reflex_group_regex + r')(,[^)]+)?\)\s*', header)
+            m = re.fullmatch(r'\s*\(' + _group_regex (vol) + r'(,[^)]+)?\)\s*', header)
             assert m and m.group('group') == ldata['Group'], (header, ldata['Group'])
 
         igt = IGT(phrase=analyzed, gloss=gloss)
@@ -300,7 +304,7 @@ class ExampleGroup(DataReference):
                 # A proto language!
                 assert (not header.strip()) or header.strip().startswith(':')
             if ldata and ldata['Group']:
-                m = re.match(r'\s*\((?P<group>' + vol.parser.languoids.reflex_group_regex + r')\)', header)
+                m = re.match(r'\s*\(' + _group_regex (vol) + r'\)', header)
                 assert m, (vol.dir.number, lang, ldata, lines[0])
                 assert m.group('group') == ldata['Group']
                 header = header[m.end():].strip()
@@ -555,7 +559,8 @@ class Reflex(Form):
             for c in w:  # FIXME: properly segment using a profile later!
                 if c not in ',[]':
                     if c not in vol.parser.graphemes[lang]:  # vol.parser.reflex_graphemes(lang)
-                        raise ValueError(c, w, rem, line, vol.parser.graphemes[lang])  # pragma: no cover
+                        raise ValueError(
+                            c, w, rem, line, vol.parser.graphemes[lang])  # pragma: no cover
 
         rem, ffn, pos = strip_footnote_reference(rem, start_only=True)
         assert not (lfn and ffn)
@@ -756,7 +761,8 @@ class Volume:
         """Check if the start of `s` matches a known language in the Volume."""
         for lg in sorted(self.parser.languoids.by_name, key=lambda ll: -len(ll)):
             if s.startswith(lg):
-                assert group is None or (self.parser.languoids.by_name[lg]['Group'] == group), (group, lg, s)
+                assert group is None or (self.parser.languoids.by_name[lg]['Group'] == group), \
+                    (group, lg, s)
                 return lg, self.parser.languoids.by_name[lg], s[len(lg):]
         return None
 

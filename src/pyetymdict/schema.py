@@ -1,8 +1,4 @@
-from typing import Optional
-
 import pycldf
-
-from .taxa import Taxa
 
 
 def schema(

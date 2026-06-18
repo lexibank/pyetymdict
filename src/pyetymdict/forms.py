@@ -1,14 +1,68 @@
 import dataclasses
+from collections.abc import Iterable
 from typing import Any, Optional
 
 import pylexibank
 from clldutils.misc import slug
 
-from pyetymdict.parser.models import Gloss, Protoform, Reflex
+from pyetymdict.parser.models import (
+    Gloss, Protoform, Reflex, ExampleGroup, FormGroup, Reconstruction, Form as FormModel)
 from .taxa import Taxa
 from .languoids import Languoids
 
 GLOSS_ID = 0
+COMPUTED_GLOSS_DEFAULT = 'none'
+
+
+@dataclasses.dataclass
+class RepresentativeProtoform:
+    form: Protoform
+    gloss: str
+    lexeme: dict
+
+
+@dataclasses.dataclass
+class Cognatesets:
+    sets: dict[tuple[str, str], tuple[str, list]] = dataclasses.field(default_factory=dict)
+
+    def add(
+            self,
+            writer,
+            rec: Reconstruction,
+            rep: RepresentativeProtoform,
+    ) -> tuple[str, list]:
+        key = (rep.form.lang, rep.form.form)
+        if key not in self.sets:
+            writer.objects['CognatesetTable'].append(dict(  # pylint: disable=R1735
+                ID=rec.id,
+                Form_ID=rep.lexeme['ID'],
+                Name=rep.form.form,
+                Description=rep.gloss,
+                Level=rep.form.lang,
+                # Source=['pmr1'],
+                # Doubt=cset.doubt,
+            ))
+            self.sets[key] = (rec.id, [])  # Map to reconstruction ID and an accumulator for forms.
+
+        return self.sets[key]
+
+
+@dataclasses.dataclass
+class ReconstructionData:
+    # We store the forms and glosses and footnote numbers listed in this cognateset reference
+    lexemes: list[dict] = dataclasses.field(default_factory=list)
+    gloss_ids: list[str] = dataclasses.field(default_factory=list)
+    # Lexeme ID to footnote
+    footnote_map: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Lexeme ID to subgroup
+    subgroup_map: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    def add_form(self, pf, lex):
+        self.lexemes.append(lex)
+        if pf.subgroup:
+            self.subgroup_map[lex['ID']] = pf.subgroup
+        if pf.footnote_number:
+            self.footnote_map[lex['ID']] = pf.footnote_number
 
 
 @dataclasses.dataclass
@@ -49,12 +103,12 @@ class Form(pylexibank.Lexeme):
                 "are often marked as being somewhat doubtful (typically displayed as proto-form "
                 "prefixed with a '?' or similar)."}
     )
-    Morpheme_Gloss: str = dataclasses.field(
+    Morpheme_Gloss: str = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={
             'dc:description':
                 'Some forms (often multi-word expressions) are listed with morpheme glosses.'})
-    Kinship_Gloss: str = dataclasses.field(
+    Kinship_Gloss: str = dataclasses.field(  # pylint: disable=C0103
         default=None,
         metadata={'dc:description': 'Formalized kinship gloss.'}
     )
@@ -189,9 +243,9 @@ class Forms:
             self,
             protoform_or_reflex,
             # Forms may have a default, inherited or otherwise computed gloss.
-            computed_gloss='none',
+            computed_gloss: str = COMPUTED_GLOSS_DEFAULT,
     ):
-        if computed_gloss != 'none':
+        if computed_gloss != COMPUTED_GLOSS_DEFAULT:
             if not protoform_or_reflex.glosses:
                 protoform_or_reflex.glosses.append(Gloss(gloss=computed_gloss, sources=[]))
         gloss = protoform_or_reflex.glosses[0].gloss if protoform_or_reflex.glosses else computed_gloss
@@ -208,7 +262,7 @@ class Forms:
             if _gloss.sources:
                 _source |= {ref.cldf_id for ref in _gloss.sources}
 
-        kw = dict(
+        kw = dict(  # pylint: disable=R1735
             Parameter_ID=self.gloss2id[gloss],
             Description=gloss,
             Value=protoform_or_reflex.form,
@@ -225,7 +279,8 @@ class Forms:
         else:
             assert isinstance(protoform_or_reflex, Reflex)
             kw.update(
-                ID='{}-{}'.format(self.languoids.by_name[protoform_or_reflex.lang]['ID'], slug(protoform_or_reflex.form)),
+                ID=f"{self.languoids.by_name[protoform_or_reflex.lang]['ID']}"
+                   f"-{slug(protoform_or_reflex.form)}",
                 Language_ID=self.languoids.by_name[protoform_or_reflex.lang]['ID'],
                 Comment=None,
                 Morpheme_Gloss=protoform_or_reflex.morpheme_gloss,
@@ -241,13 +296,13 @@ class Forms:
             self.lexid2fn[lex['ID']] = protoform_or_reflex.footnote_number
         return lex
 
-    def add_glosses(self, protoform_or_reflex, fid, old_glosses, gloss_ids):
-        for k, gloss in enumerate(protoform_or_reflex.glosses, start=1):
+    def _add_glosses(self, protoform_or_reflex, fid, old_glosses, gloss_ids):
+        for gloss in protoform_or_reflex.glosses:
             if gloss not in old_glosses:
                 # Must create a new gloss
-                global GLOSS_ID
+                global GLOSS_ID  # pylint: disable=W0603
                 GLOSS_ID += 1
-                g = dict(
+                g = dict(  # pylint: disable=R1735
                     Form_ID=fid,
                     ID=str(GLOSS_ID),
                     Name=gloss.gloss,
@@ -261,14 +316,16 @@ class Forms:
                 old_glosses[gloss] = g
                 gloss_ids.append(g['ID'])
             else:
-                # FIXME: make sure the existing gloss has all the metadata of the new one, e.g. comment, source, POS
+                # FIXME: make sure the existing gloss has all the metadata of the new one,
+                #  e.g. comment, source, POS
                 og = old_glosses[gloss]
                 if gloss.sources:
                     if not og['Source']:
                         og['Source'] = [ref.cldf_id for ref in gloss.sources]
                     else:
                         assert [ref.cldf_id for ref in gloss.sources] == og['Source'], (
-                            f"{protoform_or_reflex}: {[ref.cldf_id for ref in gloss.sources]} vs {og['Source']}")
+                            f"{protoform_or_reflex}: {[ref.cldf_id for ref in gloss.sources]}"
+                            f" vs {og['Source']}")
                 gloss_ids.append(og['ID'])
         return gloss_ids
 
@@ -276,7 +333,7 @@ class Forms:
             self,
             form,
             lang: Optional[str] = None,
-            computed_gloss: str = 'none',
+            computed_gloss: str = COMPUTED_GLOSS_DEFAULT,
             gloss_ids: Optional[list[str]] = None,
     ) -> tuple[dict, list]:
         key = (lang or form.lang, form.form)
@@ -288,129 +345,106 @@ class Forms:
         lex, glosses = self.by_lang_and_form[key]
         if gloss_ids is None:
             gloss_ids = []
-        self.add_glosses(form, lex['ID'], glosses, gloss_ids)
+        self._add_glosses(form, lex['ID'], glosses, gloss_ids)
         return self.by_lang_and_form[key][0], gloss_ids
 
-    def add_reconstructions(self, reconstructions):
-        # map (lang, form) pairs to associated glosses (as dict mapping gloss to gloss object with all properties.).
-        #
-        # FIXME: must be accumulated across reconstructions and formgroups!
-        #
-        cognatesets = {}
+    def add_reconstructions(self, reconstructions: Iterable[Reconstruction]):
+        """Add data for extracted reconstructions to the dataset."""
+        cognatesets = Cognatesets()
 
-        for i, rec in enumerate(reconstructions):
-            # Add protoforms and reflex forms and glosses, keep IDs of forms and glosses!
-            pfrep, pflex = None, None
+        for rec in reconstructions:
+            # The representative protoform and its lexeme:
+            rep = None
             # We store the forms and glosses and footnote numbers listed in this cognateset reference
-            forms, gloss_ids, fns, sgmap = [], [], {}, {}
+            data = ReconstructionData()
 
             # This is used to fill in glosses for forms that don't have any.
             computed_gloss = rec.computed_gloss
 
-            for j, pf in enumerate(rec.reflexes):  # FIXME: pf.sources !
-                if j == 0:
-                    pfrep = pf
-                pfgloss = (pf.glosses[0].gloss or pf.glosses[0].morpheme_gloss) if pf.glosses else getattr(
-                    pf, 'comment', None)
+            for pf in rec.reflexes:  # FIXME: pf.sources !
                 if isinstance(pf, Protoform):
-                    lex = self.add_protoform_or_reflex(pf, gloss_ids=gloss_ids)[0]
-                    if pflex is None:
-                        pflex = lex
+                    lex = self.add_protoform_or_reflex(pf, gloss_ids=data.gloss_ids)[0]
+                    if not rep:
+                        rep = RepresentativeProtoform(
+                            pf,
+                            (pf.glosses[0].gloss or pf.glosses[0].morpheme_gloss)
+                            if pf.glosses else getattr(pf, 'comment', None),
+                            lex)
                 else:
                     assert isinstance(pf, Reflex)
-                    w = pf
-                    assert w.lang in self.languoids.by_name
-                    lid = self.languoids.by_name[w.lang]['ID']
-                    lex = self.add_protoform_or_reflex(pf, lang=lid, computed_gloss=computed_gloss, gloss_ids=gloss_ids)[0]
+                    lex = self.add_protoform_or_reflex(
+                        pf,
+                        lang=self.languoids.by_name[pf.lang]['ID'],
+                        computed_gloss=computed_gloss,
+                        gloss_ids=data.gloss_ids)[0]
 
-                forms.append(lex)
-                if pf.subgroup:
-                    sgmap[lex['ID']] = pf.subgroup
-                if pf.footnote_number:
-                    fns[lex['ID']] = pf.footnote_number
+                data.add_form(pf, lex)
 
-            if (pfrep.lang, pfrep.form) not in cognatesets:
-                self.writer.objects['CognatesetTable'].append(dict(
-                    ID=rec.id,
-                    Form_ID=pflex['ID'],
-                    Name=pfrep.form,
-                    Description=pfgloss,
-                    Level=pfrep.lang,
-                    # Source=['pmr1'],
-                    # Doubt=cset.doubt,
-                ))
-                cognatesets[(pfrep.lang, pfrep.form)] = (rec.id, [])
-
-            csid, cog_forms = cognatesets[(pfrep.lang, pfrep.form)]
-            for lex in forms:
+            assert rep
+            csid, cog_forms = cognatesets.add(self.writer, rec, rep)
+            for lex in data.lexemes:
                 if lex['ID'] not in cog_forms:
                     self.writer.add_cognate(lexeme=lex, Cognateset_ID=csid)
                     cog_forms.append(lex['ID'])
 
-            self.writer.objects['cognatesetreferences.csv'].append(dict(
+            self.writer.objects['cognatesetreferences.csv'].append(dict(  # pylint: disable=R1735
                 ID=rec.id,
                 Cognateset_ID=csid,
                 Chapter_ID='-'.join(rec.id.split('-')[:2]),
                 # section, subsection, page
-                Form_IDs=[f['ID'] for f in forms],
-                Footnote_Numbers=fns,
-                Gloss_IDs=gloss_ids,
-                Subgroup_Mapping=sgmap,
+                Form_IDs=[f['ID'] for f in data.lexemes],
+                Footnote_Numbers=data.footnote_map,
+                Gloss_IDs=data.gloss_ids,
+                Subgroup_Mapping=data.subgroup_map,
             ))
 
             for i, (name, items) in enumerate(rec.cfs, start=1):
-                self.writer.objects['cf.csv'].append(dict(
-                    ID='{}-{}'.format(rec.id, i),
-                    Name=name,
-                    Cognateset_ID=csid,
-                    CognatesetReference_ID=rec.id,
-                    Chapter_ID='-'.join(rec.id.split('-')[:2]),
-                ))
-                for j, w in enumerate(items, start=1):
-                    assert w.lang in self.languoids.by_name, w.lang
-                    lid = self.languoids.by_name[w.lang]['ID'] if isinstance(self.languoids.by_name[w.lang], dict) else self.languoids.by_name[w.lang]
+                self._add_cf(
+                    rec, f'{rec.id}-{i}', name, computed_gloss, items, csid=csid, csrefid=rec.id)
 
-                    lex, gloss_ids = self.add_protoform_or_reflex(w, lang=lid, computed_gloss=computed_gloss)
-                    self.writer.objects['cfitems.csv'].append(dict(
-                        ID='{}-{}-{}'.format(rec.id, i, j),
-                        Form_ID=lex['ID'],
-                        Ordinal=j,
-                        Cfset_ID='{}-{}'.format(rec.id, i),
-                        Footnote_Number=self.lexid2fn.get(lex['ID']),
-                        Gloss_IDs=gloss_ids,
-                        # Source=[str(ref) for ref in form.gloss.refs],
-                        # Doubt=form.doubt,
-                    ))
-
-    def add_formgroups(self, fgs):
-        for fg in fgs:
-            self.writer.objects['cf.csv'].append(dict(
-                ID=fg.id,
-                Name=fg.id,
-                Cognateset_ID=None,
-                CognatesetReference_ID=None,
-                Chapter_ID='-'.join(fg.id.split('-')[:2]),
+    def _add_cf(  # pylint: disable=R0913,R0917
+            self,
+            obj,
+            cfid: str,
+            name: str,
+            computed_gloss: str,
+            items: Iterable[FormModel],
+            csid: Optional[str] = None,
+            csrefid: Optional[str] = None,
+    ):
+        self.writer.objects['cf.csv'].append(dict(  # pylint: disable=R1735
+            ID=cfid,
+            Name=name,
+            Cognateset_ID=csid,
+            CognatesetReference_ID=csrefid,
+            Chapter_ID='-'.join(obj.id.split('-')[:2]),
+        ))
+        for j, w in enumerate(items, start=1):
+            lex, gloss_ids = self.add_protoform_or_reflex(
+                w, lang=self.languoids.by_name[w.lang]['ID'], computed_gloss=computed_gloss)
+            self.writer.objects['cfitems.csv'].append(dict(  # pylint: disable=R1735
+                ID=f'{cfid}-{j}',
+                Form_ID=lex['ID'],
+                Subgroup=w.subgroup,
+                Cfset_ID=cfid,
+                Footnote_Number=self.lexid2fn.get(lex['ID']),
+                Ordinal=j,
+                Gloss_IDs=gloss_ids,
+                # FIXME:
+                # Source=[str(ref) for ref in form.gloss.refs],
+                # Doubt=form.doubt,
             ))
-            for j, w in enumerate(fg.forms, start=1):
-                lid = self.languoids.by_name[w.lang]['ID']
 
-                # Use formtable!
-                lex, gloss_ids = self.add_protoform_or_reflex(w, lang=lid)
-                self.writer.objects['cfitems.csv'].append(dict(
-                    ID='{}-{}'.format(fg.id, j),
-                    Form_ID=lex['ID'],
-                    Subgroup=w.subgroup,
-                    Cfset_ID=fg.id,
-                    Footnote_Number=self.lexid2fn.get(lex['ID']),
-                    Ordinal=j,
-                    Gloss_IDs=gloss_ids,
-                    # Source=[str(ref) for ref in form.gloss.refs],
-                ))
+    def add_formgroups(self, fgs: Iterable[FormGroup]):
+        """Add data for extracted form groups to the dataset."""
+        for fg in fgs:
+            self._add_cf(fg, fg.id, fg.id, COMPUTED_GLOSS_DEFAULT, fg.forms)
 
-    def add_examplegroups(self, egs):
+    def add_examplegroups(self, egs: Iterable[ExampleGroup]):
+        """Add data from extracted example groups to the dataset."""
         for eg in egs:
             for ex in eg.examples:
-                self.writer.objects['ExampleTable'].append(dict(
+                self.writer.objects['ExampleTable'].append(dict(  # pylint: disable=R1735
                     ID=ex.id,
                     Primary_Text=ex.igt.primary_text,
                     Language_ID=self.languoids.by_name[ex.language]['ID'],
@@ -423,7 +457,7 @@ class Forms:
                     Reference_Label=ex.reference.label if ex.reference else '',
                     Comment=ex.comment,
                 ))
-            self.writer.objects['examplegroups.csv'].append(dict(
+            self.writer.objects['examplegroups.csv'].append(dict(  # pylint: disable=R1735
                 ID=eg.id,
                 Number=eg.number,
                 Example_IDs=[ex.id for ex in eg.examples],

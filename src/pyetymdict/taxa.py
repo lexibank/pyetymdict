@@ -26,7 +26,8 @@ class Taxa:
     def from_file(cls, p):
         names, rows = {}, []
         for row in reader(p, dicts=True):
-            #ID,name,name_eng,rank,kingdom,phylum,class,order,family,genus,genus_eng,family_eng,synonyms
+            # ID,name,name_eng,rank,kingdom,phylum,class,order,family,genus,genus_eng,family_eng,
+            # synonyms
             rows.append(row)
             if row['synonyms']:
                 for syn in util.split(row.get('synonyms')):

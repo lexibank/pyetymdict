@@ -101,7 +101,8 @@ class Languoids:
     def add(self, writer, glangs: dict[str, Languoid], ldicts: dict[str, list[str]]):
         for lg in self.langs:
             if not lg['Group']:
-                assert any((lg[c] or 'x').split()[0] in {'Early', 'Proto'} for c in {'Alternative_Names', 'Name'})
+                assert any((lg[c] or 'x').split()[0] in
+                           {'Early', 'Proto'} for c in ('Alternative_Names', 'Name'))
             res = dict(
                 ID=lg['ID'],
                 Name=lg['Name'],
