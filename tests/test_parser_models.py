@@ -224,8 +224,8 @@ PMP *mata 'eye'
 
 
 def test_Volume(volume1):
-    assert len(volume1.chapters) == 1
-    assert len(volume1.reconstructions) == 4
+    assert len(volume1.chapters) == 2
+    assert len(volume1.reconstructions) == 6
     assert len(volume1.igts) == 2
     assert len(volume1.formgroups) == 2
     assert len(list(list(volume1.chapters.values())[0].iter_sections())) == 3

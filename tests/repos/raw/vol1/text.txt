@@ -48,7 +48,7 @@ __igt__
 
 1.1.1.1.1 Subsubsubsection
 
-Map 1: Not here
+:Map 1: Not here
 
 See Map 1 above.
 
@@ -64,6 +64,23 @@ POc *pata 'eye'[1]
  Adm: Language words
 >
 
+:Figure 1: look it up!
+
 [1] Footnote
+
+
+2. Second chapter without sections
+
+<
+POc *sata 'eye'
+ Adm: Language wordsi '_Conus leopardus_'
+>
+
+<
+POc *kata 'eye'
+ Adm: Language wordsi '_Conus leopardus_' (Author 2000)
+>
+
+See Author (2000, 2001) mentioning _Conus leopardus_.
 
 The end

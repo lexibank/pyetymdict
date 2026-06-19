@@ -38,18 +38,20 @@ class Dataset(pylexibank.Dataset):
         return Sources.from_file(self.etc_dir / 'sources.bib')
 
     @functools.cached_property
-    def taxa(self):
+    def taxa(self) -> Optional[Taxa]:
+        """Taxa - is provided in the datasets config."""
         p = self.etc_dir / 'gbif_taxa.csv'
         if p.exists():
             return Taxa.from_file(p)
-        return None
+        return None  # pragma: no cover
 
     @functools.cached_property
-    def languoids(self):
+    def languoids(self) -> Languoids:  # pylint: disable=C0116
         return Languoids.from_dataset(self)
 
     @functools.cached_property
     def parser(self):
+        """Parser instance initialized with the dataset's specific config."""
         return Parser(
             self.id,
             list(self.raw_dir.glob('vol[0-9]')),
@@ -121,6 +123,7 @@ class Dataset(pylexibank.Dataset):
             with_cf: bool = True,
             with_borrowings: bool = True,
     ):
+        """EtymDict specific CLDF schema."""
         schema(cldf)
         if self.taxa:
             self.taxa.schema(cldf)
@@ -136,7 +139,7 @@ class Dataset(pylexibank.Dataset):
         Parse an EtymDicts text, adding chapter contributions to the dataset and extracting blocks.
         """
         if not self.parser:
-            return None
+            return None  # pragma: no cover
 
         taxon2sections = collections.defaultdict(list)
         reconstructions, fgs, egs = [], [], []
@@ -159,6 +162,27 @@ class Dataset(pylexibank.Dataset):
             self.taxa.add(writer, taxon2sections)
         return reconstructions, fgs, egs
 
+    def _parse_text(
+            self,
+            cid,
+            sid,
+            text,
+            taxon2sections,
+            source2sections,
+    ):
+        def srcids(agg, m):
+            if m.table_or_fname == 'Source':
+                agg.add(m.objid)
+
+        if self.taxa:
+            for v in self.taxa.match(text):
+                taxon2sections[v].append((cid, sid))
+
+        sids = set()
+        CLDFMarkdownLink.replace(text, functools.partial(srcids, sids))
+        for s in sids:
+            source2sections[s].add(sid)
+
     def _add_chapter(  # pylint: disable=R0913,R0917
             self,
             vol: Volume,
@@ -168,12 +192,6 @@ class Dataset(pylexibank.Dataset):
             writer,
             taxon2sections,
     ):
-        def srcids(agg, m):
-            if m.table_or_fname == 'Source':
-                agg.add(m.objid)
-
-        cid = f'{vol.dir.number}-{num}'
-        sources, source_to_sections = set(), collections.defaultdict(set)
         for fig in vol.dir.iter_figures(chapter.text):
             shutil.copy(fig.path, mddir / fig.path.name)
             writer.objects['MediaTable'].append(dict(  # pylint: disable=R1735
@@ -183,23 +201,13 @@ class Dataset(pylexibank.Dataset):
                 Download_URL=str(mddir.joinpath(fig.path.name).relative_to(self.cldf_dir)),
                 Media_Type='image/png',
             ))
+        cid = f'{vol.dir.number}-{num}'
+        source_to_sections = collections.defaultdict(set)
         sid = None
         for sid, text in chapter.iter_sections():
-            if self.taxa:
-                for v in self.taxa.match(text):
-                    taxon2sections[v].append((cid, sid))
-
-            sids = set()
-            CLDFMarkdownLink.replace(text, functools.partial(srcids, sids))
-            if sids:
-                sources |= sids
-                for s in sids:
-                    source_to_sections[s].add(sid)
+            self._parse_text(cid, sid, text, taxon2sections, source_to_sections)
         if sid is None:  # Chapter has no sections.
-            sids = set()
-            CLDFMarkdownLink.replace(chapter.text, functools.partial(srcids, sids))
-            if sids:
-                sources |= sids
+            self._parse_text(cid, sid, chapter.text, taxon2sections, source_to_sections)
 
         p = mddir.joinpath(f'chapter{num}.md')
         p.write_text(chapter.text, encoding='utf-8')
@@ -219,6 +227,7 @@ class Dataset(pylexibank.Dataset):
             Volume_Number=vol.dir.number,
             Volume=vol.dir.metadata.title,
             Table_Of_Contents=nested_toc(chapter.toc),
-            Source=sorted(sources),
-            Source_To_Sections={k: list(v) for k, v in source_to_sections.items()},
+            Source=sorted(source_to_sections),
+            Source_To_Sections={
+                k: [vv for vv in v if v is not None] for k, v in source_to_sections.items()},
         ))

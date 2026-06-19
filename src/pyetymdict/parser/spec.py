@@ -249,6 +249,7 @@ class VolumeMetadata:
 
 @dataclasses.dataclass(frozen=True)
 class Figure:
+    """A figure's metadata."""
     id: str
     caption: str
     path: pathlib.Path

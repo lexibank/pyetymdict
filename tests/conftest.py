@@ -52,7 +52,7 @@ def ds(tmpdir_factory, repos, CLTS_api):
             formtable.add_reconstructions(reconstructions)
             formtable.add_formgroups(fgs)
             formtable.add_examplegroups(egs)
-            self.add_tree(args.writer, '((lang,lang2)pmp)poc;')
+            self.add_tree(args.writer, '((lang,lang2)pmp)poc;', separate_file=True)
 
     ds = DS()
     ds._cmd_makecldf(argparse.Namespace(

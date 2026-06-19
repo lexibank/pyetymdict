@@ -430,7 +430,7 @@ class Forms:
                 if gloss.sources:
                     if not og['Source']:
                         og['Source'] = [ref.cldf_id for ref in gloss.sources]
-                    else:
+                    else:  # pragma: no cover
                         assert [ref.cldf_id for ref in gloss.sources] == og['Source'], (
                             f"{protoform_or_reflex}: {[ref.cldf_id for ref in gloss.sources]}"
                             f" vs {og['Source']}")
