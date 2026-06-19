@@ -53,6 +53,7 @@ class Language(pylexibank.Language):
 
 @dataclasses.dataclass
 class Languoids:
+    """Access to the data in etc/languages.csv and etc/orthography."""
     langs: list[dict[str, Any]]
     by_name: dict[str, dict[str, Any]]
     orthography_profiles: dict[Union[None, str], Profile]
@@ -60,6 +61,7 @@ class Languoids:
 
     @classmethod
     def from_dataset(cls, dataset):
+        """Initialize from a dataset object, relaying access to the relevant data in etc/."""
         langs = {v['Name']: v for v in dataset.languages}
         for v in list(langs.values()):
             for alt in util.split(v.get('Alternative_Names', '')):
@@ -74,18 +76,22 @@ class Languoids:
         )
 
     @functools.cached_property
-    def proto_languages(self):
+    def proto_languages(self) -> list[dict[str, Any]]:
+        """Proto languages - identified by not being assigned to any reflex group."""
         return [v for v in self.langs if not v['Group']]
 
     @functools.cached_property
-    def reflex_groups(self):
+    def reflex_groups(self) -> list[str]:
+        """The language group names used for reflexes."""
         return sorted({v['Group'] for v in self.langs if v['Group']})
 
     @functools.cached_property
-    def reflex_group_regex(self):
+    def reflex_group_regex(self) -> str:
+        """The language group names used for reflexes as regex."""
         return util.re_choice(self.reflex_groups)
 
-    def orthography_profile(self, name):
+    def orthography_profile(self, name: str) -> Profile:
+        """Returns the orthography profile for a language specified by name."""
         lid = self.by_name[name]['ID']
         return self.orthography_profiles.get(lid, self.orthography_profiles[None])
 
@@ -98,12 +104,18 @@ class Languoids:
         profile = self.orthography_profile(name)
         return ''.join(profile.graphemes) + '-'
 
-    def add(self, writer, glangs: dict[str, Languoid], ldicts: dict[str, list[str]]):
+    def add(self,
+            writer: pylexibank.LexibankWriter,
+            glangs: dict[str, Languoid],
+            ldicts: dict[str, list[str]]):
+        """
+        Add the languoids as rows in LanguageTable to a dataset.
+        """
         for lg in self.langs:
             if not lg['Group']:
                 assert any((lg[c] or 'x').split()[0] in
                            {'Early', 'Proto'} for c in ('Alternative_Names', 'Name'))
-            res = dict(
+            res = dict(  # pylint: disable=R1735
                 ID=lg['ID'],
                 Name=lg['Name'],
                 Glottocode=lg['Glottocode'],

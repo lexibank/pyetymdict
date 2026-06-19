@@ -160,7 +160,13 @@ def replace_figure_refs(text: str, volume_number: str) -> str:
     Replaces references to figures, maps or tables in text with proper Markdown links.
     """
     def repl(m: re.Match[str]) -> str:
+        # Make sure, there's no reference to other volumes mentioned!
+        # We cannot link vol. 2, Map 5 from some other volume.
         label = m.string[m.start():m.end()]
+        before = m.string[:m.start()]
+        if re.search(r'[vV]ol(ume|\.)\s*[0-9],\s+$', before):
+            return label
+
         if m.string[:m.start()].strip()[-1] in {':', '_'}:
             return label
         if m.string[m.end():].strip().startswith(':'):

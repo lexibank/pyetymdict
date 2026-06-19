@@ -74,6 +74,7 @@ def test_replace_source_refs(source_pattern_dict):
 def test_replace_figure_refs():
     assert replace_figure_refs(':Map 1', '1') == ':Map 1', 'not a reference.'
     assert 'map-1' in replace_figure_refs('see Map 1', '1')
+    assert 'map-1' not in replace_figure_refs('see vol. 2, Map 1', '1')
 
 
 @pytest.mark.parametrize(

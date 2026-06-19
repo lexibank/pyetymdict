@@ -10,8 +10,10 @@ Biological taxa are supported as follows:
    of these using a synonym, this synonym can be added to the row of the corresponding
    accepted taxon.
 """
+import pathlib
 import dataclasses
 
+import pycldf
 from csvw.dsv import reader
 
 from . import util
@@ -19,11 +21,15 @@ from . import util
 
 @dataclasses.dataclass
 class Taxa:
+    """
+    A list of taxa, together with methods to find them in text and add to a CLDF dataset.
+    """
     taxa: list[dict[str, str]]
     names: dict[str, str]
 
     @classmethod
-    def from_file(cls, p):
+    def from_file(cls, p: pathlib.Path) -> 'Taxa':
+        """Initialize from data in etc/gbif_taxa.csv."""
         names, rows = {}, []
         for row in reader(p, dicts=True):
             # ID,name,name_eng,rank,kingdom,phylum,class,order,family,genus,genus_eng,family_eng,
@@ -36,13 +42,15 @@ class Taxa:
             names['_' + row['name'] + '_'] = row['ID']
         return cls(rows, names)
 
-    def match(self, text):
+    def match(self, text: str) -> list[str]:
+        """Find taxa mentioned in text."""
         if not text:
             return []
         return [v for k, v in self.names.items() if k in text]
 
     @staticmethod
-    def schema(cldf):
+    def schema(cldf: pycldf.Dataset):
+        """Add a taxa.csv table to the dataset."""
         cldf.add_table(
             'taxa.csv',
             {'name': 'ID', 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
@@ -62,7 +70,8 @@ class Taxa:
             {'name': 'sections', 'datatype': 'json'},
         )
 
-    def add(self, writer, taxon2sections):
+    def add(self, writer, taxon2sections: dict[str, list[str]]):
+        """Add languoids to the CLDF dataset."""
         for row in self.taxa:
             row['GBIF_ID'] = row['ID']
             row['synonyms'] = util.split(row.get('synonyms'))

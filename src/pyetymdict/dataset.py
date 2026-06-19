@@ -5,8 +5,8 @@ import shutil
 import pathlib
 import functools
 import collections
-import dataclasses
-from typing import Optional, Union, Any
+from collections.abc import Iterable
+from typing import Optional, Union
 
 import newick
 import pycldf
@@ -16,10 +16,9 @@ from pycldf.ext.markdown import CLDFMarkdownLink
 from cldfcatalog import Catalog
 from cldfbench import CLDFWriter
 import pylexibank
-from clldutils.misc import data_url, slug
+from clldutils.misc import data_url
 
-from pyetymdict.parser.spec import LanguageIdType
-from pyetymdict.parser.models import Parser, Volume, Gloss, Protoform, Reflex
+from pyetymdict.parser.models import Parser, Volume, Reconstruction, FormGroup, ExampleGroup
 from pyetymdict.parser.util import nested_toc
 from .taxa import Taxa
 from .languoids import Languoids, Language
@@ -122,22 +121,22 @@ class Dataset(pylexibank.Dataset):
             with_cf: bool = True,
             with_borrowings: bool = True,
     ):
-        schema(cldf, with_cf=with_cf, with_borrowings=with_borrowings)
+        schema(cldf)
         if self.taxa:
             self.taxa.schema(cldf)
-        Forms.schema(cldf, with_taxa=bool(self.taxa))
+        Forms.schema(
+            cldf, with_taxa=bool(self.taxa), with_cf=with_cf, with_borrowings=with_borrowings)
 
     def parse_chapters(
             self,
             writer: CLDFWriter,
             reconstruction_cls: Optional[type] = None,
-    ):
-        def srcids(agg, m):
-            if m.table_or_fname == 'Source':
-                agg.add(m.objid)
-
+    ) -> Optional[tuple[Iterable[Reconstruction], Iterable[FormGroup], Iterable[ExampleGroup]]]:
+        """
+        Parse an EtymDicts text, adding chapter contributions to the dataset and extracting blocks.
+        """
         if not self.parser:
-            return
+            return None
 
         taxon2sections = collections.defaultdict(list)
         reconstructions, fgs, egs = [], [], []
@@ -155,56 +154,71 @@ class Dataset(pylexibank.Dataset):
             mddir = self.cldf_dir.joinpath(vol.dir.path.name)
             mddir.mkdir(exist_ok=True)
             for num, chapter in vol.chapters.items():  # Add chapters as CLDF Markdown docs.
-                cid = f'{vol.dir.number}-{num}'
-                sources, source_to_sections = set(), collections.defaultdict(set)
-                for fid, label, p in vol.dir.iter_figures(chapter.text):
-                    shutil.copy(p, mddir / p.name)
-                    writer.objects['MediaTable'].append(dict(
-                        ID=fid,
-                        Name=f'Volume {vol.dir.number} {p.stem}',
-                        Description=label,
-                        Download_URL=str(mddir.joinpath(p.name).relative_to(self.cldf_dir)),
-                        Media_Type='image/png',
-                    ))
-                p = mddir.joinpath(f'chapter{num}.md')
-                p.write_text(chapter.text, encoding='utf-8')
-                sid = None
-                for sid, text in chapter.iter_sections():
-                    if self.taxa:
-                        for v in self.taxa.match(text):
-                            taxon2sections[v].append((cid, sid))
-
-                    sids = set()
-                    CLDFMarkdownLink.replace(text, functools.partial(srcids, sids))
-                    if sids:
-                        sources |= sids
-                        for s in sids:
-                            source_to_sections[s].add(sid)
-                if sid is None:  # Chapter has no sections.
-                    sids = set()
-                    CLDFMarkdownLink.replace(chapter.text, functools.partial(srcids, sids))
-                    if sids:
-                        sources |= sids
-
-                writer.objects['MediaTable'].append(dict(
-                    ID=f'{cid}-text',
-                    Name=f'Volume {vol.dir.number} Chapter {num}',
-                    Description='Chapter text formatted as CLDF Markdown document',
-                    Download_URL=str(p.relative_to(self.cldf_dir)),
-                    Media_Type='text/markdown',
-                    Conforms_To='CLDF Markdown',
-                ))
-                writer.objects['ContributionTable'].append(dict(
-                    ID=cid,
-                    Name=chapter.bib['title'],
-                    Contributor=chapter.bib['author'],
-                    Citation=chapter.bib.text(),
-                    Volume_Number=vol.dir.number,
-                    Volume=vol.dir.metadata.title,
-                    Table_Of_Contents=nested_toc(chapter.toc),
-                    Source=sorted(sources),
-                    Source_To_Sections={k: list(v) for k, v in source_to_sections.items()},
-                ))
+                self._add_chapter(vol, num, chapter, mddir, writer, taxon2sections)
         if self.taxa:
             self.taxa.add(writer, taxon2sections)
         return reconstructions, fgs, egs
+
+    def _add_chapter(  # pylint: disable=R0913,R0917
+            self,
+            vol: Volume,
+            num: str,
+            chapter,
+            mddir,
+            writer,
+            taxon2sections,
+    ):
+        def srcids(agg, m):
+            if m.table_or_fname == 'Source':
+                agg.add(m.objid)
+
+        cid = f'{vol.dir.number}-{num}'
+        sources, source_to_sections = set(), collections.defaultdict(set)
+        for fig in vol.dir.iter_figures(chapter.text):
+            shutil.copy(fig.path, mddir / fig.path.name)
+            writer.objects['MediaTable'].append(dict(  # pylint: disable=R1735
+                ID=fig.id,
+                Name=f'Volume {vol.dir.number} {fig.path.stem}',
+                Description=fig.caption,
+                Download_URL=str(mddir.joinpath(fig.path.name).relative_to(self.cldf_dir)),
+                Media_Type='image/png',
+            ))
+        sid = None
+        for sid, text in chapter.iter_sections():
+            if self.taxa:
+                for v in self.taxa.match(text):
+                    taxon2sections[v].append((cid, sid))
+
+            sids = set()
+            CLDFMarkdownLink.replace(text, functools.partial(srcids, sids))
+            if sids:
+                sources |= sids
+                for s in sids:
+                    source_to_sections[s].add(sid)
+        if sid is None:  # Chapter has no sections.
+            sids = set()
+            CLDFMarkdownLink.replace(chapter.text, functools.partial(srcids, sids))
+            if sids:
+                sources |= sids
+
+        p = mddir.joinpath(f'chapter{num}.md')
+        p.write_text(chapter.text, encoding='utf-8')
+        writer.objects['MediaTable'].append(dict(  # pylint: disable=R1735
+            ID=f'{cid}-text',
+            Name=f'Volume {vol.dir.number} Chapter {num}',
+            Description='Chapter text formatted as CLDF Markdown document',
+            Download_URL=str(p.relative_to(self.cldf_dir)),
+            Media_Type='text/markdown',
+            Conforms_To='CLDF Markdown',
+        ))
+        writer.objects['ContributionTable'].append(dict(  # pylint: disable=R1735
+            ID=cid,
+            Name=chapter.bib['title'],
+            Contributor=chapter.bib['author'],
+            Citation=chapter.bib.text(),
+            Volume_Number=vol.dir.number,
+            Volume=vol.dir.metadata.title,
+            Table_Of_Contents=nested_toc(chapter.toc),
+            Source=sorted(sources),
+            Source_To_Sections={k: list(v) for k, v in source_to_sections.items()},
+        ))

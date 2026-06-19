@@ -247,6 +247,13 @@ class VolumeMetadata:
         return cls(title=obj['title'], chapters=[ChapterMetadata(**ch) for ch in obj['chapters']])
 
 
+@dataclasses.dataclass(frozen=True)
+class Figure:
+    id: str
+    caption: str
+    path: pathlib.Path
+
+
 @dataclasses.dataclass
 class VolumeDir:
     """
@@ -300,7 +307,7 @@ class VolumeDir:
             return self.figure_id(self.number, type_, number)
         return None  # pragma: no cover
 
-    def iter_figures(self, text: str) -> Generator[tuple[str, str, pathlib.Path], None, None]:
+    def iter_figures(self, text: str) -> Generator[Figure, None, None]:
         """Yield figures which have already been marked with CLDF Markdown links in text."""
         figs = []
 
@@ -310,7 +317,7 @@ class VolumeDir:
                 mtype, _, fignum = ml.objid.split('-', maxsplit=2)
                 p = self.media_path(mtype, fignum.replace('_', '.'))
                 if p:
-                    figs.append((ml.objid, ml.label, p))
+                    figs.append(Figure(ml.objid, ml.label, p))
 
         CLDFMarkdownLink.replace(text, repl)
         yield from figs

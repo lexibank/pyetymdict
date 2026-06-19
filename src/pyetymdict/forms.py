@@ -1,7 +1,14 @@
+"""
+Functionality to add form data to the CLDF dataset.
+
+This includes deduplicating glosses, forms and protoforms which might appear multiple times in
+blocks extracted from the EtymDict.
+"""
 import dataclasses
 from collections.abc import Iterable
 from typing import Any, Optional
 
+import pycldf
 import pylexibank
 from clldutils.misc import slug
 
@@ -9,6 +16,7 @@ from pyetymdict.parser.models import (
     Gloss, Protoform, Reflex, ExampleGroup, FormGroup, Reconstruction, Form as FormModel)
 from .taxa import Taxa
 from .languoids import Languoids
+from .schema import cldf_markdown_comment
 
 GLOSS_ID = 0
 COMPUTED_GLOSS_DEFAULT = 'none'
@@ -16,13 +24,18 @@ COMPUTED_GLOSS_DEFAULT = 'none'
 
 @dataclasses.dataclass
 class RepresentativeProtoform:
+    """
+    Cognatesets are identified by a "representative" protoform - typically the first reconstruction
+    listed.
+    """
     form: Protoform
-    gloss: str
-    lexeme: dict
+    gloss: str  # The gloss
+    lexeme: dict  # The associated row in FormTable for the protoform
 
 
 @dataclasses.dataclass
 class Cognatesets:
+    """Aggregator class keeping track of Cognatesets identified by representative protoform."""
     sets: dict[tuple[str, str], tuple[str, list]] = dataclasses.field(default_factory=dict)
 
     def add(
@@ -31,6 +44,7 @@ class Cognatesets:
             rec: Reconstruction,
             rep: RepresentativeProtoform,
     ) -> tuple[str, list]:
+        """Add a Cognateset if not already registered."""
         key = (rep.form.lang, rep.form.form)
         if key not in self.sets:
             writer.objects['CognatesetTable'].append(dict(  # pylint: disable=R1735
@@ -49,7 +63,10 @@ class Cognatesets:
 
 @dataclasses.dataclass
 class ReconstructionData:
-    # We store the forms and glosses and footnote numbers listed in this cognateset reference
+    """
+    Data aggregator class to keep track of forms in a reconstruction, for later addition to the
+    associated Cognateset.
+    """
     lexemes: list[dict] = dataclasses.field(default_factory=list)
     gloss_ids: list[str] = dataclasses.field(default_factory=list)
     # Lexeme ID to footnote
@@ -58,6 +75,7 @@ class ReconstructionData:
     subgroup_map: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def add_form(self, pf, lex):
+        """Update the data."""
         self.lexemes.append(lex)
         if pf.subgroup:
             self.subgroup_map[lex['ID']] = pf.subgroup
@@ -125,12 +143,13 @@ class Forms:
     lexid2fn: dict = dataclasses.field(default_factory=dict)
     gloss2id: dict = dataclasses.field(default_factory=dict)
 
-    #
-    # FIXME: store langs here? It's just dataset.parser.languoids
-    #
-
     @staticmethod
-    def schema(cldf, with_taxa: bool = False):
+    def schema(
+            cldf: pycldf.Dataset,
+            with_cf: bool = True,
+            with_borrowings: bool = True,
+            with_taxa: bool = False):
+        """Add the tables and columns relevant for EtymDicts to the dataset's metadata."""
         cldf.add_table(
             'examplegroups.csv',
             {
@@ -158,17 +177,89 @@ class Forms:
                 'separator': '\t',
             },
         )
-        cldf.add_columns('CognatesetTable', 'Level')
-        if 'cf.csv' in cldf:
-            cldf.add_columns(
+        # Etyma, aka cognate sets or reconstructions:
+        cldf.add_component(
+            'CognatesetTable',
+            {
+                'name': 'Name',
+                'dc:description':
+                    'A recognizable label for the cognateset, typically the reconstructed '
+                    'proto-form and the reconstructed meaning.',
+                'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#name'},
+            {
+                'name': 'Form_ID',
+                'dc:description': 'Links to the reconstructed proto-form in FormTable.',
+                'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#formReference'},
+            cldf_markdown_comment(),
+            {
+                'name': 'Doubt',
+                'dc:description': 'Flag indicating (un)certainty of the reconstruction.',
+                'datatype': 'boolean'},
+            'Level',
+        )
+
+        if with_cf:
+            # Other groups of related lexemes can be described in "cf" tables, listed in cf.csv:
+            t = cldf.add_table(
                 'cf.csv',
+                {
+                    'name': 'ID',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
+                {
+                    'name': 'Name',
+                    'dc:description':
+                        'The title of a table of related forms; typically hints at the type of '
+                        'relation between the forms or between the group of forms and an etymon.',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#name'},
+                {
+                    'name': 'Description',
+                    "dc:format": "text/markdown",
+                    "dc:conformsTo": "CLDF Markdown",
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#description'},
+                {
+                    'name': 'Category',
+                    'dc:description': 'An optional category for groups of forms such as "loans".'},
+                {
+                    'name': 'Comment',
+                    "dc:format": "text/markdown",
+                    "dc:conformsTo": "CLDF Markdown",
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment'},
+                {
+                    'name': 'Cognateset_ID',
+                    'dc:description':
+                        'Links to an etymon, if the group of lexemes is related to one.',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#cognatesetReference'},
                 {'name': 'CognatesetReference_ID'},
                 {
                     'name': 'Chapter_ID',
                     'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#contributionReference'},
             )
-            cldf.add_columns(
+            t.common_props['dc:description'] = \
+                ('Etymological dictionaries sometimes mention "negative" results, e.g. groups of '
+                 'lexemes that appear to be cognates but are (temporarily) dismissed as proper '
+                 'cognates; for example the "noise" and "near" categories in the ACD. This '
+                 'includes the better defined category of loans where members of the group will be '
+                 'listed in BorrowingTable.')
+            # membership of lexemes in a cf group is mediated through an association table:
+            t = cldf.add_table(
                 'cfitems.csv',
+                {
+                    'name': 'ID',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#id'},
+                {
+                    'name': 'Cfset_ID'},
+                {
+                    'name': 'Form_ID',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#formReference'},
+                {
+                    'name': 'Comment',
+                    "dc:format": "text/markdown",
+                    "dc:conformsTo": "CLDF Markdown",
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment'},
+                {
+                    'name': 'Source',
+                    'separator': ';',
+                    'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#source'},
                 'Footnote_Number',
                 {'name': 'Ordinal', 'datatype': 'integer'},
                 {
@@ -176,6 +267,12 @@ class Forms:
                     'separator': ' '},
                 {'name': 'Subgroup'},
             )
+            cldf.add_foreign_key('cfitems.csv', 'Cfset_ID', 'cf.csv', 'ID')
+            t.common_props['dc:description'] = \
+                ('Membership of forms in a "cf" group is mediated through this association table '
+                 'unless more meaningful alternatives are available, like BorrowingTable for '
+                 'loans.')
+
         cldf.add_table(
             'cognatesetreferences.csv',
             {
@@ -218,11 +315,7 @@ class Forms:
                 'name': 'Form_ID',
                 'dc:description': 'Links to the form in FormTable.',
                 'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#formReference'},
-            {
-                'name': 'Comment',
-                "dc:format": "text/markdown",
-                "dc:conformsTo": "CLDF Markdown",
-                'propertyUrl': 'http://cldf.clld.org/v1.0/terms.rdf#comment'},
+            cldf_markdown_comment(),
             {
                 'name': 'Source',
                 'separator': ';',
@@ -236,10 +329,24 @@ class Forms:
         cldf.add_foreign_key('cognatesetreferences.csv', 'Gloss_IDs', 'glosses.csv', 'ID')
         if 'cf.csv' in cldf:
             cldf.add_foreign_key('cfitems.csv', 'Gloss_IDs', 'glosses.csv', 'ID')
-            cldf.add_foreign_key('cf.csv', 'CognatesetReference_ID', 'cognatesetreferences.csv', 'ID')
-        return
+            cldf.add_foreign_key(
+                'cf.csv',
+                'CognatesetReference_ID',
+                'cognatesetreferences.csv',
+                'ID')
 
-    def add_form(
+        if with_borrowings:
+            # Loans
+            cldf.add_component(
+                'BorrowingTable',
+                {
+                    'name': 'Cfset_ID',
+                    'dc:description': 'Link to a set description.'}
+            )
+            if with_cf:
+                cldf.add_foreign_key('BorrowingTable', 'Cfset_ID', 'cf.csv', 'ID')
+
+    def _add_form(
             self,
             protoform_or_reflex,
             # Forms may have a default, inherited or otherwise computed gloss.
@@ -248,7 +355,8 @@ class Forms:
         if computed_gloss != COMPUTED_GLOSS_DEFAULT:
             if not protoform_or_reflex.glosses:
                 protoform_or_reflex.glosses.append(Gloss(gloss=computed_gloss, sources=[]))
-        gloss = protoform_or_reflex.glosses[0].gloss if protoform_or_reflex.glosses else computed_gloss
+        gloss = protoform_or_reflex.glosses[0].gloss \
+            if protoform_or_reflex.glosses else computed_gloss
 
         if gloss not in self.gloss2id:
             self.gloss2id[gloss] = slug(str(gloss))
@@ -329,7 +437,7 @@ class Forms:
                 gloss_ids.append(og['ID'])
         return gloss_ids
 
-    def add_protoform_or_reflex(
+    def _add_protoform_or_reflex(
             self,
             form,
             lang: Optional[str] = None,
@@ -338,7 +446,7 @@ class Forms:
     ) -> tuple[dict, list]:
         key = (lang or form.lang, form.form)
         if key not in self.by_lang_and_form:
-            lex = self.add_form(form, computed_gloss=computed_gloss)
+            lex = self._add_form(form, computed_gloss=computed_gloss)
             # FIXME: we'll adapt the Description and Parameter_ID lateron, when all glosses have
             # been collected!
             self.by_lang_and_form[key] = (lex, {})
@@ -355,7 +463,8 @@ class Forms:
         for rec in reconstructions:
             # The representative protoform and its lexeme:
             rep = None
-            # We store the forms and glosses and footnote numbers listed in this cognateset reference
+            # We store the forms and glosses and footnote numbers listed in this cognateset
+            # reference.
             data = ReconstructionData()
 
             # This is used to fill in glosses for forms that don't have any.
@@ -363,7 +472,7 @@ class Forms:
 
             for pf in rec.reflexes:  # FIXME: pf.sources !
                 if isinstance(pf, Protoform):
-                    lex = self.add_protoform_or_reflex(pf, gloss_ids=data.gloss_ids)[0]
+                    lex = self._add_protoform_or_reflex(pf, gloss_ids=data.gloss_ids)[0]
                     if not rep:
                         rep = RepresentativeProtoform(
                             pf,
@@ -372,7 +481,7 @@ class Forms:
                             lex)
                 else:
                     assert isinstance(pf, Reflex)
-                    lex = self.add_protoform_or_reflex(
+                    lex = self._add_protoform_or_reflex(
                         pf,
                         lang=self.languoids.by_name[pf.lang]['ID'],
                         computed_gloss=computed_gloss,
@@ -420,7 +529,7 @@ class Forms:
             Chapter_ID='-'.join(obj.id.split('-')[:2]),
         ))
         for j, w in enumerate(items, start=1):
-            lex, gloss_ids = self.add_protoform_or_reflex(
+            lex, gloss_ids = self._add_protoform_or_reflex(
                 w, lang=self.languoids.by_name[w.lang]['ID'], computed_gloss=computed_gloss)
             self.writer.objects['cfitems.csv'].append(dict(  # pylint: disable=R1735
                 ID=f'{cfid}-{j}',
