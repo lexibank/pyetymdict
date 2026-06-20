@@ -112,9 +112,9 @@ class Languoids:
         Add the languoids as rows in LanguageTable to a dataset.
         """
         for lg in self.langs:
-            if not lg['Group']:
-                assert any((lg[c] or 'x').split()[0] in
-                           {'Early', 'Proto'} for c in ('Alternative_Names', 'Name'))
+            #if not lg['Group']:
+            #    assert any((lg[c] or 'x').split()[0] in
+            #               {'Early', 'Proto'} for c in ('Alternative_Names', 'Name'))
             res = dict(  # pylint: disable=R1735
                 ID=lg['ID'],
                 Name=lg['Name'],

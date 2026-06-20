@@ -54,7 +54,7 @@ class Dataset(pylexibank.Dataset):
         """Parser instance initialized with the dataset's specific config."""
         return Parser(
             self.id,
-            list(self.raw_dir.glob('vol[0-9]')),
+            sorted(self.raw_dir.glob('vol*'), key=lambda p: p.name),
             self.languoids,
             pos_map={pos: pos for pos in self.etc_dir.read_json('pos.json')},
             citation_template=Source.from_bibtex(self.etc_dir.read('citation.bib')),
@@ -150,6 +150,7 @@ class Dataset(pylexibank.Dataset):
                 self.sources,
                 reconstruction_cls=reconstruction_cls,
             )
+            print(vol)
             reconstructions.extend(vol.reconstructions)
             fgs.extend(vol.formgroups)
             egs.extend(vol.igts)

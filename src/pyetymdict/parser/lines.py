@@ -42,6 +42,11 @@ def formblock(parser: Parser, lines: Iterable[str]) -> tuple[list[str], list[CfG
             cf.append(line)
         else:
             reg.append(line)
+
+    for line in itertools.takewhile(lambda l: l.startswith(':') or not l, lines):
+        if line.startswith(':'):
+            pass
+
     if cf:
         cfs.append((cfspec, cf))
     return reg, cfs
@@ -216,7 +221,7 @@ class CurrentHeader:
             return
         m = SUBSECTION_HEADER_PATTERN.match(line)
         if m:
-            assert self.h2 and m.group('b') == self.h2[0], line
+            assert self.h2 and m.group('b') == self.h2[0], (self.h2, m.group('b'), line)
             self.h3 = (m.group('c'), m.group('title'))
         return
 

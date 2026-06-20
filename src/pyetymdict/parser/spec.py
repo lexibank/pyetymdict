@@ -172,6 +172,9 @@ def reconstruction_pattern(proto_langs: Iterable[str], pos_map: Iterable[str]) -
 
     (1) PMP root (?) (ADV) [1] *...
     """
+    #
+    # FIXME: POC below isn't generic!
+    #
     return re.compile(
         r'(\((?P<relno>[0-9])\)\s*)?'  # pylint: disable=C0209
         r'(?P<pl>({}))\s+'
@@ -265,6 +268,7 @@ class VolumeDir:
       - fig_1.png
     """
     path: pathlib.Path
+    number: str
     bib: Source = None
 
     @classmethod
@@ -272,18 +276,15 @@ class VolumeDir:
             cls, d: pathlib.Path,
             citation_template: Source,
             project_id: str,
+            number: Optional[str] = None,
     ) -> 'VolumeDir':
-        assert re.fullmatch(r'vol[0-9]', d.name), \
-            "Volume dirs are expected to be named vol[0-9]"
-        res = cls(d)
+        assert re.fullmatch(r'vol[0-9\w]', d.name), \
+            "Volume dirs are expected to be named with a prefix vol."
+        res = cls(d, number or d.name[-1])
         bib = Source('book', f'{project_id}{res.number}', **citation_template)
         bib['title'] += f' {res.number}: {res.metadata.title}'
         res.bib = bib
         return res
-
-    @property
-    def number(self) -> str:  # pylint: disable=C0116
-        return self.path.name[-1]
 
     def media_path(self, type_, number) -> Optional[pathlib.Path]:
         """Path to a media file in the volume's media directory."""
@@ -360,7 +361,6 @@ class Parser:  # pylint: disable=R0903,R0902
             citation_template: Source,
     ):
         self.project_id: str = project_id
-
         self.graphemes: dict[str, Container[str]] = {
             name: languoids.grapheme_tokens(name) for name in languoids.by_name}
         self.languoids: Languoids = languoids
@@ -371,8 +371,14 @@ class Parser:  # pylint: disable=R0903,R0902
         self.reconstruction_pattern: re.Pattern[str] = reconstruction_pattern(
             [v['Name'] for v in languoids.proto_languages], pos_map)
         self.bib = citation_template
-        self.volumes: list[VolumeDir] = [
-            VolumeDir.from_path(d, citation_template, project_id) for d in volumes]
+        self.volumes: list[VolumeDir] = []
+        for i, d in enumerate(volumes, start=1):
+            n = None
+            try:
+                _ = int(d.name[3:])
+            except ValueError:  # Volume dir is not of the format vol[0-9], thus we create a number.
+                n = str(i)
+            self.volumes.append(VolumeDir.from_path(d, citation_template, project_id, number=n))
 
     def is_forms_line(self, line) -> bool:
         """

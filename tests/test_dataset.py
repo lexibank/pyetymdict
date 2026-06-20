@@ -13,6 +13,10 @@ def test_dataset(tmp_path, ds):
     ds.schema(cldf)
 
 
+def test_dataset_non_default(ds2):
+    assert ds2
+
+
 def test_dataset_add_tree(tmp_path, CLTS_api):
     class DS(Dataset):
         id = 'test'

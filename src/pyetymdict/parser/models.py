@@ -8,6 +8,7 @@ from collections.abc import Generator, Iterable
 import dataclasses
 from typing import Any, Optional, Union, Protocol
 
+import unicodedata
 from pycldf.sources import Source, Sources
 from clldutils.misc import slug
 from pyigt import IGT, LGRConformance
@@ -559,8 +560,9 @@ class Reflex(Form):
             for c in w:  # FIXME: properly segment using a profile later!
                 if c not in ',[]':
                     if c not in vol.parser.graphemes[lang]:  # vol.parser.reflex_graphemes(lang)
-                        raise ValueError(
-                            c, w, rem, line, vol.parser.graphemes[lang])  # pragma: no cover
+                        if unicodedata.category(c) != 'Mn':
+                            raise ValueError(
+                                c, w, rem, line, vol.parser.graphemes[lang])  # pragma: no cover
 
         rem, ffn, pos = strip_footnote_reference(rem, start_only=True)
         assert not (lfn and ffn)

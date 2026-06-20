@@ -7,7 +7,7 @@ from pyetymdict.parser.lines import *
 def volume_dir(tmp_path):
     d = tmp_path / 'vol1'
     d.mkdir()
-    return VolumeDir(d)
+    return VolumeDir(d, '1')
 
 
 def test_extract_blocks():

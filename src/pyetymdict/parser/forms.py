@@ -189,7 +189,10 @@ def parse_protoform(
 
 def get_quotes(s: str) -> str:
     """Detect and return the type of quotes used in s."""
-    return "‘’" if "‘" in s else "''"
+    #
+    # FIXME: Should be handled more predictably!
+    #
+    return "‘’" if "‘" in s and "'" not in s else "''"
 
 
 @dataclasses.dataclass
