@@ -46,7 +46,17 @@ class Taxa:
         """Find taxa mentioned in text."""
         if not text:
             return []
-        return [v for k, v in self.names.items() if k in text]
+        res = [v for k, v in self.names.items() if k in text]
+        #
+        # FIXME: Should we warn about un-marked taxa? Automated fixes might be error prone.
+        #
+        for row in self.taxa:
+            if not row['name'].strip():
+                continue
+            if row['ID'] not in res:
+                if row['name'] in text:
+                    print(f'WARNING: Found unmarked taxon name: {row["name"]}')
+        return res
 
     @staticmethod
     def schema(cldf: pycldf.Dataset):

@@ -278,7 +278,7 @@ class VolumeDir:
             project_id: str,
             number: Optional[str] = None,
     ) -> 'VolumeDir':
-        assert re.fullmatch(r'vol[0-9\w]', d.name), \
+        assert re.fullmatch(r'vol[0-9\w]+', d.name), \
             "Volume dirs are expected to be named with a prefix vol."
         res = cls(d, number or d.name[-1])
         bib = Source('book', f'{project_id}{res.number}', **citation_template)
@@ -369,7 +369,8 @@ class Parser:  # pylint: disable=R0903,R0902
         self.pos_map = pos_map
         self.kinship_pattern: re.Pattern[str] = kinship.PATTERN
         self.reconstruction_pattern: re.Pattern[str] = reconstruction_pattern(
-            [v['Name'] for v in languoids.proto_languages], pos_map)
+            [v['Alternative_Names'] for v in languoids.proto_languages] + [v['Name'] for v in languoids.proto_languages], pos_map)
+            #[v['Name'] for v in languoids.proto_languages], pos_map)
         self.bib = citation_template
         self.volumes: list[VolumeDir] = []
         for i, d in enumerate(volumes, start=1):

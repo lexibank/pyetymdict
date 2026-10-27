@@ -407,6 +407,8 @@ class Forms:
 
     def _add_glosses(self, protoform_or_reflex, fid, old_glosses, gloss_ids):
         for gloss in protoform_or_reflex.glosses:
+            if gloss.gloss and 'Apis dorsata' in gloss.gloss:
+                print(gloss)
             if gloss not in old_glosses:
                 # Must create a new gloss
                 global GLOSS_ID  # pylint: disable=W0603

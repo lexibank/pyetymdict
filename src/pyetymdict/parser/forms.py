@@ -192,7 +192,7 @@ def get_quotes(s: str) -> str:
     #
     # FIXME: Should be handled more predictably!
     #
-    return "‘’" if "‘" in s and "'" not in s else "''"
+    return "‘’" if ("‘" in s and "’" in s) else "''"
 
 
 @dataclasses.dataclass

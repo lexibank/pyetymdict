@@ -825,13 +825,13 @@ class Volume:
     @functools.cached_property
     def formgroups(self) -> list[FormGroup]:
         """Extracted formgroups."""
-        assert self.reconstructions, 'self._lines not initialized!'
+        self.reconstructions
         return list(self._iter_blocks(BLOCKS['formgroup'], FormGroup))
 
     @functools.cached_property
     def igts(self) -> list[ExampleGroup]:
         """Extracted examples."""
-        assert self.reconstructions, 'self._lines not initialized!'
+        self.reconstructions
         return list(self._iter_blocks(BLOCKS['igt'], ExampleGroup))
 
     def _iter_blocks(
